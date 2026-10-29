@@ -1,0 +1,74 @@
+# RAINY FB Pro 5.3
+
+## Хэрэглэгчид
+
+1. Landing page-ийн “Өргөтгөл татах” товчоор хэрэглэгчийн ZIP-ийг татна.
+2. ZIP-ийг бүрэн задална.
+3. Chrome-ийн хаягийн мөрөнд `chrome://extensions` бичнэ.
+4. Developer mode → Load unpacked → manifest.json байгаа задалсан хавтсыг сонгоно.
+5. Chrome-ийн puzzle дүрс → RAINY FB Pro → Pin.
+6. Facebook-д нэвтэрсэн tab-аа нээнэ. Өргөтгөл шинэчилсэн бол tab-аа refresh хийнэ.
+
+Серверийн URL болон API key оруулах талбар хэрэглэгчийн интерфэйст байхгүй. Үйлчилгээний хаяг урьдчилан тохируулагдсан.
+
+## Trial, лиценз
+
+- Шинэ төхөөрөмжийн trial: 3 хоног.
+- 30 хоног: 49,900 ₮.
+- 90 хоног: 99,000 ₮.
+- 365 хоног: 299,000 ₮.
+- Дээд ногоон мөрөнд эрхийн төлөв, дуусах YYYY-MM-DD HH:mm:ss, хоног/цаг/минут/секундын countdown харагдана. Timezone: Asia/Ulaanbaatar.
+- Хугацаа дуусвал төлөв улаан болж, шинэ үйлдлийг хориглоно.
+- Өмнөх valid лиценз worker асах бүрд устах алдааг зассан. Хуучин түлхүүрүүдийг тохирох Device ID дээр үргэлжлүүлэн шалгана.
+- Админаас авсан түлхүүрийг Лиценз хэсэгт оруулж болно. Шинэ offline түлхүүрт Ed25519 гарын үсгийн шалгалт бий; private key-г клиентэд хадгалахгүй. Эзэмшигч хуучин түлхүүрийн compatibility горимыг унтрааж болно.
+
+## Хийсэн засвар
+
+- Popup-ийн viewport-оос болж 40px хэмжээтэй болох алдааг зассан: 780×590 intrinsic shell; full tab нь тусдаа горим.
+- Extension full tab-аас ирэх runtime хүсэлтийг буруу хориглодог алдааг зассан.
+- Facebook-ийн нээлттэй tab-д receiver байхгүй бол script-ийг нэг удаа холбоно. Өмнөх хувилбарын listener байгаа tab-ийг update хийсний дараа refresh хийнэ.
+- Хуучин ажиллагааны 4-pass lead scraper болон editor/file-upload аргуудыг сэргээсэн.
+- Хамааралгүй санал болгосон группийн Join товчийг хараад одоогийн группт бичих эрхгүй гэж үздэг шалгалтыг өөрчилсөн.
+- Зураг upload шалгалт нь локалчлагдсан “Remove photo” label шаардахгүй: шинэ preview болон upload busy төлөвөөр шалгана.
+- Worker дахин асахад зөвхөн in-flight тодорхойгүй оролдлогыг PAUSED/UNKNOWN болгоно; хүлээгдэж буй мөрүүдийг хадгална.
+- Хадгалсан PAUSED queue нь тусдаа scrape/group search хийхийг бүхэлд нь хориглохгүй.
+
+## Боломжууд
+
+Пост бэлтгэх, зураг хөнгөрүүлэх, зурагтай template, group preset, Spintax, 6 төрлийн жишээ, текст угсрах туслах, утас шүүх/хуулах, CSV экспорт, backup/restore, нэг удаагийн хуваарь, 20/30 минут болон 1/2/4/6/12 цагийн scheduler. Start/Stop удирдлага байнга харагдана.
+
+Facebook хязгаарлалт/checkpoint илэрвэл queue-г түр зогсооно. Гурван дараалсан FAILED/UNKNOWN төлөвт мөн зогсооно. Өдрийн оролдлогын хязгаар, групп тутмын амралтын тохиргоо бий. Эдгээр нь Facebook block-оос 100% хамгаалах баталгаа биш.
+
+Хурдан горимын 5 секунд нь групп хоорондын хүссэн завсарлага. Facebook ачаалах, зураг оруулах, нийтлэл баталгаажуулах хугацаа нэмэгдэнэ. Chrome, компьютер нээлттэй, интернеттэй байна.
+
+## Wire.mn / Telegram
+
+Лицензийн сервер Railway дээр ассан, persistent SQLite volume ашиглана. Шинэ Wire API key зөвхөн серверийн variables-д хадгалагдсан. Wire read API баталгаажсан; бодит төлбөр гүйцэтгээгүй.
+
+Төлбөрийн intent, валют, дүнг серверээр тулгана. Хүлээгдэж буй захиалгын төлбөрийг 30 секунд тутам шалгана. Баталгаажсан төлбөрийн Telegram мэдэгдлээс админ идэвхжүүлнэ. Нэг захиалга давхар эрх нэмэхгүй.
+
+Bot команд: `/orders`, `/check ORDER_ID`, `/activate ORDER_ID`. Гараар баталгаажуулах эрхтэй админ `/manual ORDER_ID BANK_TRANSACTION_ID` ашиглаж болно; нэг гүйлгээний ID-г давтахгүй.
+
+## Эзэмшигчийн хэрэгсэл
+
+`owner/manage.mjs configure https://REAL-SERVER` нь build хийх үед endpoint болон manifest host permission-ийг тохируулна. Хэрэглэгч үүнийг ажиллуулахгүй. Bot token/Wire key-г owner-config.json-д оруулахгүй; зөвхөн серверт хадгална.
+
+`node owner/manage.mjs init-signing` нь offline keypair үүсгэж public key-г extension-д суулгана. `node owner/manage.mjs license DEV-DEVICE 30` нь private key-ээр 30 хоногийн түлхүүр үүсгэнэ. PRIVATE-DO-NOT-DISTRIBUTE.pem файлыг клиент ZIP-д, GitHub-д, public вебд оруулахгүй.
+
+## Баталгаажуулалт
+
+82 автомат/Chromium шалгалт: queue/license/transport 20, DOM fixture 14, server/payments 16, compact UI 6, бодит Chromium popup/UI 17, бодит Chromium DOM 9. Landing page-ийн demo болон installation tab-ийг cloud browser дээр шалгасан.
+
+Хэрэглэгчийн бодит Facebook account дээр пост илгээгээгүй, бүртгэлийн scrape хийгээгүй. Facebook-ийн UI, нэвтрэлт, группийн эрх, pending approval-аас шалтгаалсан нөхцөлийг бодит төхөөрөмж дээр шалгана. Бүх ажиллагааг 100% production гэж баталгаажуулаагүй.
+
+## Холбоос
+
+GitHub: https://github.com/ssboroo/rainy_workspace-fb
+Үндсэн домэйн: workspace.rainy.studio (DNS/SSL баталгаажилтыг Railway дээр шалгана)
+Telegram: https://t.me/boroobro
+
+## 5.3 шинэчлэлт
+
+Icon дарахад Chrome sidebar шууд нээгдэнэ. Дээд талын Light / Dark товч сонголтыг хадгална. Цэсүүд ижил SVG дүрстэй.
+
+Device бүртгэл өөрийн лицензийн үйлчилгээний Secure / HttpOnly cookie-д хадгалагдаж, нэг Chrome профайлд өргөтгөлийг устгаад дахин суулгахад өмнөх ID, secret-ийг сэргээнэ. Facebook cookie уншихгүй. Энэ нь hardware ID биш; бүх cookie болон sync өгөгдлийг арилгасан шинэ профайлыг таних баталгаа байхгүй. 5.3 руу эхлээд Reload хийж бүртгэлийг хадгалуулсны дараа дахин суулгана. Өмнө нь устгаж алдагдсан ID-г автоматаар нөхөн сэргээхгүй.

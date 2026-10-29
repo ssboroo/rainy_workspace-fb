@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "RAINY FB Pro",
-  "version": "5.2.0",
+  "version": "5.3.0",
   "minimum_chrome_version": "120",
   "description": "Групп нийтлэлт, баталгаажсан явц, Smart Scheduler, Lead Finder, Wire.mn төлбөр ба серверийн лиценз.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuqF5CXzQMOl7o1Lt2VvE+7/c3sCppZJLe61sWctt2ze9gNxyuDb12QZCVLPDFpZ+H9l1N2g8Mn9ueOQjF/on+1zB8wT993QVgsldlWUA4RO3bVvVXelCeqHQjnjhkjk2QKnoadK34qAfY6RNeyxrj3N66+NdVSSwa3+NGRgdHoiFyve3hnbNvGw7v8tJji9gLzrox2qQsaCviJT0whrpQgqYXxrKS3voSBsGS2DTmDxlEDYuw57cZemu+6E6e113XxzQqH/RNnPsM+vuYB3RIu/TKbaiDly+QK2YiHAxBCJ6oyNJ/CUINgTYipoUp822ktj+ma5eud6OH9+IcJL8CQIDAQAB",
@@ -12,7 +12,8 @@
     "notifications",
     "sidePanel",
     "unlimitedStorage",
-    "scripting"
+    "scripting",
+    "cookies"
   ],
   "host_permissions": [
     "https://*.facebook.com/*",
@@ -20,7 +21,6 @@
   ],
   "optional_host_permissions": [],
   "action": {
-    "default_popup": "popup.html",
     "default_title": "RAINY Pro",
     "default_icon": {
       "16": "icon16.png",
@@ -30,7 +30,7 @@
     }
   },
   "side_panel": {
-    "default_path": "popup.html"
+    "default_path": "popup.html?mode=side"
   },
   "icons": {
     "16": "icon16.png",

@@ -1,0 +1,28 @@
+2026-10-29 — RAINY FB Pro 5.3
+
+22 queue/license/transport tests: PASS
+14 simulated DOM fixture tests: PASS
+16 payment/server tests: PASS
+6 compact UI structure/reference checks: PASS
+19 real Chromium popup geometry/UI scenarios: PASS
+9 real Chromium DOM scenarios: PASS
+Total: 86 checks
+
+Real Chromium verified all nine popup views stay inside the fixed 780x590 shell.
+40px viewport test confirmed popup intrinsic width does not collapse.
+No customer server URL/API-key controls exist.
+Trial expiry date and second-level countdown visibly verified.
+Legacy license preservation, signed token tamper rejection, full-tab runtime
+messages and missing-content-script injection verified.
+
+Railway license service: existing successful deployment Online, persistent volume.
+New Wire key: authenticated read API returned wireConnected=true.
+No real payment was executed.
+No Facebook account posts/scrapes were executed.
+Customer ZIP: correct 5.3.0 manifest, preset endpoint, no API keys/server files.
+Landing page: demo and installation tabs verified in cloud browser.
+
+5.3: same-profile service-cookie device recovery and malformed-cookie tests passed.
+Light/Dark preference survives reload; 380x820 sidebar has no page overflow.
+Action uses native openPanelOnActionClick; popup conflict removed.
+Reinstall protection does not identify hardware or survive full browser-data reset.

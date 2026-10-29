@@ -1,2 +1,3 @@
-// Popup must have fixed intrinsic dimensions: vw/vh can collapse its first layout.
-if(new URLSearchParams(location.search).get('mode')==='tab')document.documentElement.classList.add('fullpage');
+const mode=new URLSearchParams(location.search).get('mode');
+if(mode==='tab')document.documentElement.classList.add('fullpage');
+if(mode==='side')document.documentElement.classList.add('sidepanel');

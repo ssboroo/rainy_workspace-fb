@@ -31,12 +31,36 @@ async function localTrial(){
   const r={ok:true,valid:clockValid&&expiry>Date.now(),expiresAt:expiry,trial:true,local:true,daysLeft:Math.max(0,Math.ceil((expiry-Date.now())/86400000))};
   await chrome.storage.local.set({entitlement:r});return r;
 }
+let identityPromise;
 async function deviceIdentity(){
-  const local=await chrome.storage.local.get(['deviceId','deviceSecret']);let sync={};try{sync=await chrome.storage.sync.get(['rainyDeviceId']);}catch{}
-  const deviceId=local.deviceId||sync.rainyDeviceId||'DEV-'+crypto.randomUUID();
-  const deviceSecret=local.deviceSecret||crypto.randomUUID()+crypto.randomUUID();
-  await chrome.storage.local.set({deviceId,deviceSecret});return {deviceId,deviceSecret};
+  if(identityPromise)return identityPromise;
+  identityPromise=(async()=>{
+    await configReady;
+    const local=await chrome.storage.local.get(['deviceId','deviceSecret']);
+    let sync={};try{sync=await chrome.storage.sync.get(['rainyDeviceId','rainyDeviceSecret']);}catch{}
+    let saved;
+    if(ownerConfig.serverUrl&&chrome.cookies){
+      try{
+        const cookie=await chrome.cookies.get({url:ownerConfig.serverUrl,name:'rainy_device_v1'});
+        if(cookie){const data=JSON.parse(decodeURIComponent(cookie.value));if(/^DEV-(?:[a-f0-9]{8}|[a-f0-9-]{36})$/i.test(data.id)&&typeof data.secret==='string'&&data.secret.length>=64)saved=data;}
+      }catch{}
+    }
+    // A complete pair is essential: restoring only an ID causes authentication failure.
+    const pair=local.deviceId&&local.deviceSecret?{id:local.deviceId,secret:local.deviceSecret}:saved||(sync.rainyDeviceId&&sync.rainyDeviceSecret?{id:sync.rainyDeviceId,secret:sync.rainyDeviceSecret}:null);
+    const deviceId=pair?.id||local.deviceId||'DEV-'+crypto.randomUUID();
+    const deviceSecret=pair?.secret||crypto.randomUUID()+crypto.randomUUID();
+    await chrome.storage.local.set({deviceId,deviceSecret});
+    // This first-party service cookie survives extension uninstall in the same profile.
+    // Never read Facebook cookies or transmit Facebook credentials.
+    if(ownerConfig.serverUrl&&chrome.cookies){
+      await chrome.cookies.set({url:ownerConfig.serverUrl,name:'rainy_device_v1',value:encodeURIComponent(JSON.stringify({id:deviceId,secret:deviceSecret})),httpOnly:true,secure:true,sameSite:'no_restriction',expirationDate:Math.floor(Date.now()/1000)+400*86400});
+    }
+    try{await chrome.storage.sync.set({rainyDeviceId:deviceId,rainyDeviceSecret:deviceSecret});}catch{}
+    return {deviceId,deviceSecret};
+  })();
+  try{return await identityPromise;}finally{identityPromise=null;}
 }
+
 async function storedLicense(){
   await configReady;const {deviceId}=await deviceIdentity();
   const local=await chrome.storage.local.get(['activeLicense','signedLicense']);let sync={};try{sync=await chrome.storage.sync.get(['rainyActiveLicense']);}catch{}
@@ -297,3 +321,10 @@ chrome.runtime.onMessage.addListener((m,sender,sendResponse)=>{
     }
   }).then(sendResponse).catch(e=>sendResponse({ok:false,error:e.message}));return true;
 });
+
+// Chrome handles the action's user gesture directly; no async message loses it.
+function enableSidebar(){return chrome.sidePanel.setPanelBehavior({openPanelOnActionClick:true}).catch(console.error);}
+void enableSidebar();
+chrome.runtime.onInstalled.addListener(()=>{void enableSidebar();});
+chrome.runtime.onStartup.addListener(()=>{void enableSidebar();});
+chrome.action.onClicked.addListener(tab=>{if(tab.windowId!==undefined)void chrome.sidePanel.open({windowId:tab.windowId}).catch(console.error);});
