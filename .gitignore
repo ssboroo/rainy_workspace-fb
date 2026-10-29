@@ -1,0 +1,6 @@
+.env
+server/.env
+*.sqlite*
+__pycache__/
+node_modules/
+owner/PRIVATE-DO-NOT-DISTRIBUTE.pem
