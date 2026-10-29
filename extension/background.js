@@ -307,6 +307,15 @@ chrome.runtime.onMessage.addListener((m,sender,sendResponse)=>{
         if(!urls.length)throw new Error('Илгээгээгүй, дахин оролдож болох алдаа алга. UNKNOWN пост давтагдахгүй.');
         return startQueue({...job.form,fbGroupUrls:urls});}
       case 'POST_SUBMIT_PERMIT':return submitPermit(m,sender);
+      case 'CONFIRM_PUBLISHED':return atomic(async()=>{
+        const {job,postLedger={}}=await chrome.storage.local.get(['job','postLedger']);
+        const index=Number(m.index);
+        const item=job?.items?.[index];
+        if(!job||job.id!==m.jobId||!Number.isInteger(index)||!item||item.status!=='UNKNOWN')throw new Error('Зөвхөн одоогийн queue-ийн баталгаажаагүй постыг баталгаажуулж болно.');
+        item.status='PUBLISHED';item.error='';item.note='Хэрэглэгч Facebook дээр бодитоор нийтлэгдсэнийг баталгаажуулсан.';item.confirmedPublishedAt=Date.now();job.updatedAt=Date.now();
+        postLedger[item.key]={status:'PUBLISHED',at:Date.now(),jobId:job.id,url:item.url,postUrl:item.postUrl||'',manualConfirmation:true};
+        await chrome.storage.local.set({job,postLedger});return {ok:true,job};
+      });
       case 'POST_RECEIPT':return receipt(m,sender);
       case 'SCRAPE_PARTIAL':{
         if(sender.tab?.id!==scrapeTabId)return {ok:false};
