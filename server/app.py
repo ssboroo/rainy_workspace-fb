@@ -47,6 +47,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY,action TEXT NOT NULL,order_id TEXT,actor TEXT,created INTEGER NOT NULL);
         CREATE TABLE IF NOT EXISTS outbox(id TEXT PRIMARY KEY,payload TEXT NOT NULL,sent INTEGER NOT NULL DEFAULT 0,attempts INTEGER NOT NULL DEFAULT 0,next_at INTEGER NOT NULL DEFAULT 0);
         ''')
+        if 'activation_days' not in {r['name'] for r in db.execute('PRAGMA table_info(orders)')}:db.execute('ALTER TABLE orders ADD COLUMN activation_days INTEGER')
 
 def request_json(url,method='GET',data=None,headers=None):
     raw=json.dumps(data,separators=(',',':')).encode() if data is not None else None
@@ -176,7 +177,7 @@ def check_order(order_id):
             row=dict(row);row['status']='EXPIRED'
     return dict(row)
 
-def activate(order_id,actor,manual_reference=None):
+def activate(order_id,actor,manual_reference=None,selected_days=None):
     with transaction() as db:
         order=db.execute('SELECT * FROM orders WHERE id=?',(order_id,)).fetchone()
         if not order:raise ValueError('ORDER_NOT_FOUND')
@@ -186,12 +187,14 @@ def activate(order_id,actor,manual_reference=None):
             if not re.fullmatch(r'[a-zA-Z0-9:_-]{6,100}',manual_reference):raise ValueError('TRANSACTION_REFERENCE_REQUIRED')
             db.execute("UPDATE orders SET status='PAID',paid_at=?,manual_reference=? WHERE id=?",(now(),manual_reference,order_id))
         elif order['status']!='PAID':raise ValueError('PAYMENT_NOT_CONFIRMED')
+        days=order['days'] if selected_days is None else int(selected_days)
+        if str(days) not in PLANS:raise ValueError('INVALID_DURATION')
         dev=db.execute('SELECT * FROM devices WHERE id=?',(order['device_id'],)).fetchone()
-        expiry=max(now(),dev['expires'])+order['days']*86400000
+        expiry=max(now(),dev['expires'])+days*86400000
         db.execute('UPDATE devices SET expires=? WHERE id=?',(expiry,dev['id']))
-        db.execute("UPDATE orders SET status='ACTIVE',granted_at=? WHERE id=?",(now(),order_id))
+        db.execute("UPDATE orders SET status='ACTIVE',granted_at=?,activation_days=? WHERE id=?",(now(),days,order_id))
         db.execute('INSERT INTO audit(action,order_id,actor,created) VALUES(?,?,?,?)',('manual_activate' if manual_reference else 'activate',order_id,actor,now()))
-        enqueue(db,'active-'+order_id,f"👑 Эрх идэвхжлээ\n{order_id}\n{dev['id']}\n{order['days']} хоног · {order['amount']:,} ₮")
+        enqueue(db,'active-'+order_id,f"👑 Эрх идэвхжлээ\n{order_id}\n{dev['id']}\n{days} хоног · {order['amount']:,} ₮\nДуусах: {date_mn(expiry)} (УБ)")
         return True
 
 def verify_wire(raw,header,secret=None,clock=None):
@@ -218,11 +221,37 @@ def wire_webhook(raw,header):
     with transaction() as db:db.execute('INSERT OR IGNORE INTO events VALUES(?,?)',(eid,now()))
     return {'ok':True}
 
+def device_detail(did):
+    with connection() as db:
+        dev=db.execute('SELECT * FROM devices WHERE id=?',(did,)).fetchone()
+        orders=db.execute('SELECT * FROM orders WHERE device_id=? ORDER BY created DESC LIMIT 5',(did,)).fetchall()
+    if not dev:raise ValueError('DEVICE_NOT_FOUND')
+    ent=entitlement(dev)
+    return (f"ХЭРЭГЛЭГЧ / ТӨХӨӨРӨМЖ\n{did}\nТөлөв: {'Идэвхтэй' if ent['valid'] else 'Дууссан'}\nҮлдсэн: {ent['daysLeft']} хоног\nДуусах: {date_mn(ent['expiresAt'])} (УБ)\nБүртгэсэн: {date_mn(dev['created'])}\nСүүлийн төлбөрүүд:\n"+
+            '\n'.join(f"{r['id']} · {r['amount']:,} ₮ · {r['status']}" for r in orders)+
+            '\nДоорх хугацаа нь админы гараар эрх олгох үйлдэл. Төлбөрийн захиалгыг /orders хэсгээс шалгана.')
+
+def payment_detail(oid,days=None):
+    with connection() as db:
+        order=db.execute('SELECT * FROM orders WHERE id=?',(oid,)).fetchone()
+        if not order:raise ValueError('ORDER_NOT_FOUND')
+        dev=db.execute('SELECT * FROM devices WHERE id=?',(order['device_id'],)).fetchone()
+    answer=f"ЗАХИАЛГА {oid}\nХэрэглэгч: {order['device_id']}\nТөлбөр: {order['amount']:,} ₮ · {order['status']}\nХудалдан авсан: {order['days']} хоног\nОдоогийн эрх: {date_mn(max(dev['expires'],dev['trial_expires']))} (УБ)"
+    if order['paid_at']:answer+='\nТөлсөн: '+date_mn(order['paid_at'])+' (УБ)'
+    if order['granted_at']:return answer+f"\nОлгосон: {order['activation_days'] or order['days']} хоног",None
+    if order['status']!='PAID':return answer+'\nТөлбөр баталгаажаагүй. Эрх олгохгүй.',[[{'text':'Төлбөр дахин шалгах','callback_data':'activate:'+oid}]]
+    if days is None:
+        return answer+'\nОлгох хугацаагаа сонгоно уу. Худалдан авсан багцыг шалгаарай.',[[{'text':f"{d} хоног"+(' ✓ багц' if int(d)==order['days'] else ''),'callback_data':f'choose:{oid}:{d}'} for d in PLANS]]
+    if str(days) not in PLANS:raise ValueError('INVALID_DURATION')
+    expiry=max(now(),dev['expires'])+int(days)*86400000
+    return answer+f"\nСонгосон: {days} хоног\nШинэ дуусах: {date_mn(expiry)} (УБ)\nБаталгаажуулбал нэг удаа эрх нэмэгдэнэ.",[[{'text':f'{days} хоног олгох · Баталгаажуулах','callback_data':f'confirm:{oid}:{days}'}],[{'text':'Буцах','callback_data':'activate:'+oid}]]
+
 def telegram_webhook(update):
     cb=update.get('callback_query');msg=update.get('message') or (cb or {}).get('message') or {}
     actor=(cb or msg).get('from',{}).get('id')
     if str(actor)!=ADMIN_ID or str(msg.get('chat',{}).get('id'))!=ADMIN_CHAT:raise PermissionError('ADMIN_ONLY')
-    uid='tg-'+str(update.get('update_id'))
+    if type(update.get('update_id')) is not int:raise ValueError('UPDATE_ID_REQUIRED')
+    uid='tg-'+str(update['update_id'])
     with connection() as db:
         if db.execute('SELECT 1 FROM events WHERE id=?',(uid,)).fetchone():return {'ok':True}
     text=(msg.get('text') or '').strip();answer='';buttons=None
@@ -238,14 +267,19 @@ def telegram_webhook(update):
         elif data.startswith('g:'):
             _,token,days=data.split(':');answer=grant_device(token,days,str(actor))
         elif data.startswith('device:'):
-            did=data.split(':',1)[1];buttons=device_buttons(did);answer=f'Device: {did}\nТөлбөрийг өөрөө шалгасны дараа олгох хугацаагаа сонгоно уу. Нэг удаа идэвхжинэ.'
+            did=data.split(':',1)[1];buttons=device_buttons(did);answer=device_detail(did)
+        elif data.startswith('choose:'):
+            _,oid,days=data.split(':');answer,buttons=payment_detail(oid,days)
+        elif data.startswith('confirm:'):
+            _,oid,days=data.split(':');answer='Эрх идэвхжлээ.' if activate(oid,str(actor),selected_days=days) else 'Өмнө нь идэвхжсэн байна.'
+            detail,_=payment_detail(oid);answer+='\n'+detail
         elif data.startswith('activate:'):
             oid=data.split(':',1)[1];order=check_order(oid)
             if order['status'] not in ('PAID','ACTIVE'):answer='Төлбөр хараахан баталгаажаагүй.'
-            else:answer='Эрх идэвхжлээ.' if activate(oid,str(actor)) else 'Өмнө нь идэвхжсэн байна.'
+            else:answer,buttons=payment_detail(oid)
         else:answer='Танихгүй үйлдэл.'
     elif text.startswith('/device '):
-        did=text.split(maxsplit=1)[1].strip();buttons=device_buttons(did);answer=f'Device: {did}\nТөлбөрийг өөрөө шалгасны дараа хугацаа сонгоно уу. Давхар дарсан ч нэг удаа идэвхжинэ.'
+        did=text.split(maxsplit=1)[1].strip();buttons=device_buttons(did);answer=device_detail(did)
     elif text.startswith('/devices'):
         with connection() as db:rows=db.execute('SELECT * FROM devices ORDER BY created DESC LIMIT 10').fetchall()
         answer='ТӨХӨӨРӨМЖҮҮД\nИдэвхжүүлэх төхөөрөмжөө сонгоно уу.'
@@ -257,7 +291,7 @@ def telegram_webhook(update):
         answer='Гараар баталгаажуулж идэвхжүүллээ.' if activate(parts[1],str(actor),parts[2]) else 'Өмнө нь идэвхжсэн.'
     elif text.startswith('/check ') or text.startswith('/activate '):
         oid=text.split(maxsplit=1)[1];order=check_order(oid)
-        if text.startswith('/activate '):answer='Эрх идэвхжлээ.' if activate(oid,str(actor)) else 'Өмнө нь идэвхжсэн.'
+        if text.startswith('/activate '):answer,buttons=payment_detail(oid)
         else:answer=f"{oid}: {order['status']} · {order['amount']:,} ₮"
     elif text.startswith('/orders'):
         with connection() as db:rows=db.execute('SELECT * FROM orders ORDER BY created DESC LIMIT 15').fetchall()
@@ -314,7 +348,7 @@ class Handler(BaseHTTPRequestHandler):
             path=urlparse(self.path).path;length=int(self.headers.get('Content-Length','0'))
             if length>262144:return self.reply(413,{'error':'BODY_TOO_LARGE'})
             raw=self.rfile.read(length) if length else b'{}'
-            if path=='/health':return self.reply(200,{'ok':True,'version':'5.4.0','botWebhookConnected':BOT_WEBHOOK_CONNECTED})
+            if path=='/health':return self.reply(200,{'ok':True,'version':'5.6.6','botWebhookConnected':BOT_WEBHOOK_CONNECTED})
             if path=='/webhooks/wire' and self.command=='POST':return self.reply(200,wire_webhook(raw,self.headers.get('WirePayment-Signature','')))
             if path=='/webhooks/telegram' and self.command=='POST':
                 if not TG_SECRET or not hmac.compare_digest(TG_SECRET,self.headers.get('X-Telegram-Bot-Api-Secret-Token','')):raise PermissionError('BAD_TELEGRAM_SECRET')
