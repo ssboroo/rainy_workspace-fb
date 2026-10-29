@@ -95,6 +95,19 @@ async function scheduleTick(when=Date.now()+1000){
   // A short timer keeps 5s mode responsive while awake; the durable alarm is the fallback.
   const delay=Math.max(0,when-Date.now());if(delay<25000){queueWakeTimer=setTimeout(()=>{void pump();},delay);queueWakeTimer?.unref?.();}
 }
+async function stripImageMetadata(images){
+  const out=[];
+  for(const im of images){
+    const bitmap=await createImageBitmap(await (await fetch(im.dataUrl)).blob());
+    try{
+      const canvas=new OffscreenCanvas(bitmap.width,bitmap.height);canvas.getContext('2d').drawImage(bitmap,0,0);
+      const type=im.type==='image/png'?'image/png':'image/jpeg';const blob=await canvas.convertToBlob({type,quality:.92});
+      const bytes=new Uint8Array(await blob.arrayBuffer());let binary='';for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192));
+      out.push({...im,type,size:blob.size,dataUrl:'data:'+type+';base64,'+btoa(binary)});
+    }finally{bitmap.close();}
+  }
+  return out;
+}
 async function startQueue(form,source='manual'){
   // Set the in-memory lock before any await. Storage is serialized too.
   if(isQueueRunning||pumping||scrapeTabId)throw new Error('Өөр даалгавар ажиллаж байна.');
@@ -106,7 +119,7 @@ async function startQueue(form,source='manual'){
     const groups=[...new Set((form.fbGroupUrls||[]).map(RainyCore.groupUrl).filter(Boolean))];
     if(!groups.length)throw new Error('Зөв группийн холбоос оруулна уу.');
     if(form.shuffleGroupsOrder)for(let i=groups.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[groups[i],groups[j]]=[groups[j],groups[i]];}
-    const images=await loadSerializedImagesFromIDB();
+    let images=await loadSerializedImagesFromIDB();if(form.stripMetadata!==false)images=await stripImageMetadata(images);
     if(!String(form.description||'').trim()&&!images.length)throw new Error('Текст эсвэл зураг оруулна уу.');
     const contentHash=await digest(JSON.stringify({description:form.description||'',images:images.map(x=>x.dataUrl)}));
     const items=[];for(const url of groups)items.push({url,key:await digest(url+contentHash),status:'QUEUED'});
@@ -173,7 +186,7 @@ async function pump(){
       const finished=job.items.filter(i=>!['QUEUED','PREPARING','SUBMITTING','DUPLICATE_BLOCKED'].includes(i.status));
       if(job.status==='RUNNING'&&finished.slice(-3).length===3&&finished.slice(-3).every(i=>['FAILED','UNKNOWN'].includes(i.status))){job.status='PAUSED';job.pauseReason='3 дараалсан алдаа/баталгаажаагүй оролдлого. Шалгасны дараа үргэлжлүүлнэ үү.';}
       if(job.status==='RUNNING'){
-        let delay=Math.max(5000,Number(job.form.minDelaySec||30)*1000);
+        let delay=Math.max(1500,Number(job.form.minDelaySec||30)*1000);
         const every=Math.max(1,Number(job.form.breakEvery)||10);
         if(finished.length&&finished.length%every===0)delay=Math.max(delay,(Number(job.form.breakMinutes)||5)*60000);
         job.nextAt=Date.now()+delay;
@@ -182,7 +195,7 @@ async function pump(){
       if(isQueueRunning)await scheduleTick(job.nextAt);
       else if(job.status==='COMPLETED'){
         const count=s=>job.items.filter(i=>i.status===s).length;
-        await broadcastLog(`Дууслаа: нийтлэгдсэн ${count('PUBLISHED')}, хүлээгдсэн ${count('PENDING_APPROVAL')}, баталгаажаагүй ${count('UNKNOWN')}, алдаатай ${count('FAILED')}, бусад ${job.items.length-count('PUBLISHED')-count('PENDING_APPROVAL')-count('UNKNOWN')-count('FAILED')}.`);
+        await broadcastLog(`Дууслаа: нийтлэгдсэн ${count('PUBLISHED')}, хүлээгдсэн ${count('PENDING_APPROVAL')}, баталгаажаагүй ${count('UNKNOWN')}, алдаатай ${count('FAILED')}, алгассан ${count('SKIPPED')}, давхардлыг хаасан ${count('DUPLICATE_BLOCKED')}, зогсоосон ${count('CANCELLED')}.`);
       }
     });
   }

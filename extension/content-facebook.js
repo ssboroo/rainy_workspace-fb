@@ -838,7 +838,8 @@
       return btn&&btn.getAttribute('aria-disabled')!=='true'&&!btn.disabled?btn:null;
     },30000);
     const baseline=new Set(Array.from(document.querySelectorAll('[role="alert"],[role="status"]')).map(x=>normalizeText(x.innerText)));
-    const oldLinks=new Set(Array.from(document.querySelectorAll('a[href]')).map(a=>a.href));
+    const canonical=u=>{try{const x=new URL(u);if(x.searchParams.has('story_fbid'))return x.origin+x.pathname+'?story_fbid='+x.searchParams.get('story_fbid');return x.origin+x.pathname.replace(/\/$/,'');}catch{return u;}};
+    const oldLinks=new Set(Array.from(document.querySelectorAll('a[href]')).map(a=>canonical(a.href)));
     const permit=await chrome.runtime.sendMessage({action:'POST_SUBMIT_PERMIT',jobId:payload.jobId,index:payload.index,attemptId:payload.attemptId});
     if(!permit?.ok)throw new Error('SUBMIT_NOT_AUTHORIZED');
     checkAbort();pageGate();simulateHumanClick(enabledBtn);
@@ -849,12 +850,14 @@
       if(fresh.some(t=>/pending approval|submitted.*approval|waiting.*approval|зөвшөөрөл хүлээ|хянуулахаар илгээ/.test(t)))return {status:'PENDING_APPROVAL',note:'Админы хяналт хүлээж байна'};
       // A closed composer alone never proves success. Require a new post link AND matching content.
       const text=normalizeText(payload.formData.description||'');
-      const articles=Array.from(document.querySelectorAll('[role="article"]')).filter(isVisible);
+      const articles=Array.from(document.querySelectorAll('[role="article"],[data-pagelet^="FeedUnit"]')).filter(isVisible);
       for(const card of articles){
-        const a=Array.from(card.querySelectorAll('a[href]')).find(a=>/\/groups\/[^/]+\/(?:posts|permalink)\/|story_fbid=/.test(a.href)&&!oldLinks.has(a.href));
+        const a=Array.from(card.querySelectorAll('a[href]')).find(a=>/\/(?:posts|permalink)\/|story_fbid=/.test(a.href)&&!oldLinks.has(canonical(a.href)));
         const content=normalizeText(card.innerText||'');
-        if(a&&text.length>=8&&content.includes(text)&&(!payload.images?.length||Array.from(card.querySelectorAll('img')).filter(x=>x.complete&&x.naturalWidth>100).length>=payload.images.length))return {status:'PUBLISHED',postUrl:a.href,note:'Шинэ постын холбоос, агуулгыг шалгасан'};
+        if(a&&text.length>=1&&content.includes(text)&&(!payload.images?.length||Array.from(card.querySelectorAll('img')).filter(x=>x.complete&&x.naturalWidth>100).length>=payload.images.length))return {status:'PUBLISHED',postUrl:a.href,note:'Шинэ постын холбоос, агуулгыг шалгасан'};
       }
+      const closed=!isVisible(dialog)||!dialog.isConnected;
+      if(closed&&fresh.some(t=>/^(?:your post (?:was |has been )?(?:published|posted)|post (?:published|created|successful)|нийтлэл (?:амжилттай )?нийтлэгдлээ|таны нийтлэл нийтлэгдлээ|публикация опубликована)[.!\s]*$/.test(t)))return {status:'PUBLISHED',note:'Facebook нийтлэл амжилттай орсныг мэдэгдсэн'};
       if(fresh.some(t=>/couldn.t post|unable to post|something went wrong|нийтэлж чадсангүй|алдаа гарлаа/.test(t)))return {status:'UNKNOWN',error:'FACEBOOK_REPORTED_ERROR_AFTER_SUBMIT'};
       await fastSleep(700);
     }

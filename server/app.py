@@ -3,6 +3,7 @@ Wire API contract adapted from ssboroo/socialtool-store/src/lib/wire.ts.
 """
 import hashlib, hmac, json, os, re, secrets, sqlite3, threading, time
 from contextlib import contextmanager
+from datetime import datetime, timezone, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
@@ -16,6 +17,7 @@ ADMIN_ID=os.environ.get('TELEGRAM_ADMIN_USER_ID','')
 ADMIN_CHAT=os.environ.get('TELEGRAM_ADMIN_CHAT_ID','')
 TG_SECRET=os.environ.get('TELEGRAM_WEBHOOK_SECRET','')
 PUBLIC_URL=os.environ.get('PUBLIC_URL','').rstrip('/')
+BOT_WEBHOOK_CONNECTED=None
 
 def now():return int(time.time()*1000)
 def sha(value):return hashlib.sha256(value.encode()).hexdigest()
@@ -40,6 +42,7 @@ def init_db():
         db.executescript('''
         CREATE TABLE IF NOT EXISTS devices(id TEXT PRIMARY KEY,secret_hash TEXT NOT NULL,trial_expires INTEGER NOT NULL,expires INTEGER NOT NULL DEFAULT 0,created INTEGER NOT NULL);
         CREATE TABLE IF NOT EXISTS orders(id TEXT PRIMARY KEY,device_id TEXT NOT NULL REFERENCES devices(id),plan TEXT NOT NULL,amount INTEGER NOT NULL,days INTEGER NOT NULL,status TEXT NOT NULL DEFAULT 'PENDING',intent TEXT UNIQUE,checkout TEXT,request_id TEXT NOT NULL,created INTEGER NOT NULL,paid_at INTEGER,granted_at INTEGER,manual_reference TEXT UNIQUE,UNIQUE(device_id,request_id));
+        CREATE TABLE IF NOT EXISTS admin_grants(token TEXT PRIMARY KEY,device_id TEXT NOT NULL REFERENCES devices(id),created INTEGER NOT NULL,granted_at INTEGER,days INTEGER);
         CREATE TABLE IF NOT EXISTS events(id TEXT PRIMARY KEY,created INTEGER NOT NULL);
         CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY,action TEXT NOT NULL,order_id TEXT,actor TEXT,created INTEGER NOT NULL);
         CREATE TABLE IF NOT EXISTS outbox(id TEXT PRIMARY KEY,payload TEXT NOT NULL,sent INTEGER NOT NULL DEFAULT 0,attempts INTEGER NOT NULL DEFAULT 0,next_at INTEGER NOT NULL DEFAULT 0);
@@ -85,8 +88,31 @@ def register(device_id,secret):
         if row and not hmac.compare_digest(row['secret_hash'],sha(secret)):raise PermissionError('DEVICE_AUTH_FAILED')
         if not row:
             db.execute('INSERT INTO devices(id,secret_hash,trial_expires,created) VALUES(?,?,?,?)',(device_id,sha(secret),now()+3*86400000,now()))
+            if ADMIN_CHAT:enqueue(db,'device-'+device_id,f'ШИНЭ ТӨХӨӨРӨМЖ\nDevice: {device_id}\nTrial: 3 хоног\nДуусах: {date_mn(now()+3*86400000)} (УБ)',[[{'text':'Эрх олгох · 30 / 90 / 365','callback_data':'device:'+device_id}]])
             row=db.execute('SELECT * FROM devices WHERE id=?',(device_id,)).fetchone()
         return entitlement(row)
+
+def date_mn(ms):return datetime.fromtimestamp(ms/1000,timezone(timedelta(hours=8))).strftime('%Y-%m-%d %H:%M:%S')
+
+def device_buttons(device_id):
+    token=secrets.token_hex(8)
+    with transaction() as db:
+        if not db.execute('SELECT 1 FROM devices WHERE id=?',(device_id,)).fetchone():raise ValueError('DEVICE_NOT_FOUND')
+        db.execute('INSERT INTO admin_grants(token,device_id,created) VALUES(?,?,?)',(token,device_id,now()))
+    return [[{'text':label,'callback_data':f'g:{token}:{days}'} for days,label in [('30','30 хоног'),('90','90 хоног'),('365','1 жил')]]]
+
+def grant_device(token,days,actor):
+    if str(days) not in PLANS:raise ValueError('PLAN_INVALID')
+    with transaction() as db:
+        req=db.execute('SELECT * FROM admin_grants WHERE token=?',(token,)).fetchone()
+        if not req or req['created']<now()-86400000:raise ValueError('BUTTON_EXPIRED_USE_DEVICE_COMMAND')
+        if req['granted_at']:return 'Энэ товчоор эрх өмнө нь идэвхжсэн. Давхар хоног нэмээгүй.'
+        dev=db.execute('SELECT * FROM devices WHERE id=?',(req['device_id'],)).fetchone()
+        expiry=max(now(),dev['expires'])+int(days)*86400000
+        db.execute('UPDATE devices SET expires=? WHERE id=?',(expiry,dev['id']))
+        db.execute('UPDATE admin_grants SET granted_at=?,days=? WHERE token=?',(now(),int(days),token))
+        db.execute('INSERT INTO audit(action,order_id,actor,created) VALUES(?,?,?,?)',('admin_device_grant:'+str(days),dev['id'],str(actor),now()))
+        return f"ЭРХ ИДЭВХЖЛЭЭ\nDevice: {dev['id']}\nХугацаа: {days} хоног\nДуусах: {date_mn(expiry)} (УБ)\nАдмины гараар олгосон эрх; төлбөр шалгасан гэсэн тэмдэглэгээ биш."
 
 def authenticate(device_id,secret):
     with connection() as db:row=db.execute('SELECT * FROM devices WHERE id=?',(device_id,)).fetchone()
@@ -136,7 +162,7 @@ def mark_paid(order_id,pi):
         if pi.get('id')!=row['intent'] or pi.get('status')!='succeeded' or type(pi.get('amount')) is not int or pi['amount']!=row['amount'] or pi.get('currency')!='MNT':raise ValueError('PAYMENT_NOT_CONFIRMED_OR_MISMATCH')
         if row['status']=='PENDING':
             db.execute("UPDATE orders SET status='PAID',paid_at=? WHERE id=?",(now(),order_id))
-            enqueue(db,'paid-'+order_id,f"✅ Wire.mn төлбөр баталгаажлаа\n{order_id}\n{row['amount']:,} ₮ · {row['days']} хоног",[[{'text':f"{row['days']} хоногийн эрх идэвхжүүлэх",'callback_data':'activate:'+order_id}]])
+            enqueue(db,'paid-'+order_id,f"✅ ТӨЛБӨР БАТАЛГААЖЛАА\nЗахиалга: {order_id}\nDevice: {row['device_id']}\nДүн: {row['amount']:,} ₮\nБагц: {row['days']} хоног\nЦаг: {date_mn(now())} (УБ)",[[{'text':f"{row['days']} хоногийн эрх идэвхжүүлэх",'callback_data':'activate:'+order_id}]])
         return dict(db.execute('SELECT * FROM orders WHERE id=?',(order_id,)).fetchone())
 
 def check_order(order_id):
@@ -199,14 +225,31 @@ def telegram_webhook(update):
     uid='tg-'+str(update.get('update_id'))
     with connection() as db:
         if db.execute('SELECT 1 FROM events WHERE id=?',(uid,)).fetchone():return {'ok':True}
-    text=(msg.get('text') or '').strip();answer=''
+    text=(msg.get('text') or '').strip();answer='';buttons=None
     if cb:
         data=cb.get('data','')
-        if data.startswith('activate:'):
+        if data=='devices':
+            with connection() as db:rows=db.execute('SELECT * FROM devices ORDER BY created DESC LIMIT 10').fetchall()
+            answer='ТӨХӨӨРӨМЖҮҮД · Идэвхжүүлэх төхөөрөмжөө сонгоно уу.';buttons=[[{'text':r['id'],'callback_data':'device:'+r['id']}] for r in rows]
+        elif data=='orders':
+            with connection() as db:rows=db.execute('SELECT * FROM orders ORDER BY created DESC LIMIT 10').fetchall()
+            answer='ЗАХИАЛГУУД\n'+'\n'.join(f"{r['id']} · {r['amount']:,} ₮ · {r['status']}\nDevice: {r['device_id']}" for r in rows)
+            buttons=[[{'text':r['id']+' · Шалгах / Идэвхжүүлэх','callback_data':'activate:'+r['id']}] for r in rows if not r['granted_at']]
+        elif data.startswith('g:'):
+            _,token,days=data.split(':');answer=grant_device(token,days,str(actor))
+        elif data.startswith('device:'):
+            did=data.split(':',1)[1];buttons=device_buttons(did);answer=f'Device: {did}\nТөлбөрийг өөрөө шалгасны дараа олгох хугацаагаа сонгоно уу. Нэг удаа идэвхжинэ.'
+        elif data.startswith('activate:'):
             oid=data.split(':',1)[1];order=check_order(oid)
             if order['status'] not in ('PAID','ACTIVE'):answer='Төлбөр хараахан баталгаажаагүй.'
             else:answer='Эрх идэвхжлээ.' if activate(oid,str(actor)) else 'Өмнө нь идэвхжсэн байна.'
         else:answer='Танихгүй үйлдэл.'
+    elif text.startswith('/device '):
+        did=text.split(maxsplit=1)[1].strip();buttons=device_buttons(did);answer=f'Device: {did}\nТөлбөрийг өөрөө шалгасны дараа хугацаа сонгоно уу. Давхар дарсан ч нэг удаа идэвхжинэ.'
+    elif text.startswith('/devices'):
+        with connection() as db:rows=db.execute('SELECT * FROM devices ORDER BY created DESC LIMIT 10').fetchall()
+        answer='ТӨХӨӨРӨМЖҮҮД\nИдэвхжүүлэх төхөөрөмжөө сонгоно уу.'
+        buttons=[[{'text':r['id'],'callback_data':'device:'+r['id']}] for r in rows]
     elif text.startswith('/manual '):
         parts=text.split()
         if len(parts)!=3:raise ValueError('/manual ORDER_ID БАНКНЫ_ГҮЙЛГЭЭНИЙ_ID')
@@ -219,9 +262,10 @@ def telegram_webhook(update):
     elif text.startswith('/orders'):
         with connection() as db:rows=db.execute('SELECT * FROM orders ORDER BY created DESC LIMIT 15').fetchall()
         answer='\n'.join(f"{r['id']} · {r['amount']:,} ₮ · {r['status']}" for r in rows) or 'Захиалга алга.'
-    else:answer='RAINY Pro\n/orders — захиалгууд\n/check ORDER_ID\n/activate ORDER_ID — Wire шалгаад идэвхжүүлэх\n/manual ORDER_ID ГҮЙЛГЭЭНИЙ_ID — төлбөрийг өөрөө шалгасны дараа гараар идэвхжүүлэх'
+    else:answer='RAINY Pro · АДМИН\n/devices — төхөөрөмж сонгох\n/device DEV-КОД — 30/90/365 хоног олгох\n/orders — захиалгууд\n/check ORDER_ID\n/activate ORDER_ID — Wire шалгаад идэвхжүүлэх\n/manual ORDER_ID ГҮЙЛГЭЭНИЙ_ID — төлбөрийг өөрөө шалгасны дараа гараар идэвхжүүлэх'
+    if buttons is None:buttons=[[{'text':'Төхөөрөмжүүд','callback_data':'devices'},{'text':'Захиалгууд','callback_data':'orders'}]]
     with transaction() as db:
-        enqueue(db,uid,answer);db.execute('INSERT OR IGNORE INTO events VALUES(?,?)',(uid,now()))
+        enqueue(db,uid,answer,buttons);db.execute('INSERT OR IGNORE INTO events VALUES(?,?)',(uid,now()))
     # Acknowledge callback through the same durable outbox (no token in client).
     if cb:
         with transaction() as db:
@@ -270,7 +314,7 @@ class Handler(BaseHTTPRequestHandler):
             path=urlparse(self.path).path;length=int(self.headers.get('Content-Length','0'))
             if length>262144:return self.reply(413,{'error':'BODY_TOO_LARGE'})
             raw=self.rfile.read(length) if length else b'{}'
-            if path=='/health':return self.reply(200,{'ok':True})
+            if path=='/health':return self.reply(200,{'ok':True,'version':'5.4.0','botWebhookConnected':BOT_WEBHOOK_CONNECTED})
             if path=='/webhooks/wire' and self.command=='POST':return self.reply(200,wire_webhook(raw,self.headers.get('WirePayment-Signature','')))
             if path=='/webhooks/telegram' and self.command=='POST':
                 if not TG_SECRET or not hmac.compare_digest(TG_SECRET,self.headers.get('X-Telegram-Bot-Api-Secret-Token','')):raise PermissionError('BAD_TELEGRAM_SECRET')
@@ -283,6 +327,9 @@ class Handler(BaseHTTPRequestHandler):
             if path=='/v1/payment-service' and self.command=='GET':
                 wire('/payment_intents?limit=1')
                 return self.reply(200,{'ok':True,'wireConnected':True,'telegramConfigured':bool(BOT_TOKEN and ADMIN_CHAT and ADMIN_ID),'prices':PLANS})
+            if path=='/v1/bot-status' and self.command=='GET':
+                info=telegram('getWebhookInfo',{}).get('result',{}) if BOT_TOKEN else {}
+                return self.reply(200,{'ok':True,'configured':bool(BOT_TOKEN and ADMIN_ID and ADMIN_CHAT),'webhookConnected':info.get('url')==PUBLIC_URL+'/webhooks/telegram'})
             if path=='/v1/license' and self.command=='GET':return self.reply(200,entitlement(device))
             if path=='/v1/orders' and self.command=='POST':return self.reply(200,create_order(device_id,str(data.get('plan')),data.get('requestId','')))
             if path.startswith('/v1/orders/') and self.command=='GET':
@@ -300,7 +347,8 @@ if __name__=='__main__':
     if os.environ.get('REGISTER_TELEGRAM_WEBHOOK')=='true':
         if not PUBLIC_URL.startswith('https://') or not TG_SECRET or not ADMIN_ID or not ADMIN_CHAT:raise SystemExit('PUBLIC_URL, Telegram webhook secret, admin user/chat IDs required')
         info=telegram('getWebhookInfo',{}).get('result',{})
+        BOT_WEBHOOK_CONNECTED=info.get('url')==PUBLIC_URL+'/webhooks/telegram'
         if not info.get('url') or info.get('url')==PUBLIC_URL+'/webhooks/telegram':
-            telegram('setWebhook',{'url':PUBLIC_URL+'/webhooks/telegram','secret_token':TG_SECRET,'allowed_updates':['message','callback_query']})
+            telegram('setWebhook',{'url':PUBLIC_URL+'/webhooks/telegram','secret_token':TG_SECRET,'allowed_updates':['message','callback_query']});BOT_WEBHOOK_CONNECTED=True
         else:print('Existing Telegram webhook preserved; route updates to this service to enable bot activation.',flush=True)
     ThreadingHTTPServer(('0.0.0.0',int(os.environ.get('PORT','8080'))),Handler).serve_forever()
