@@ -115,20 +115,31 @@ async function sleepWithAbortCheck(totalMs) {
 }
 
 // ==========================================
-// 6. SILENT BACKGROUND TAB LIFECYCLE (`active: false`)
+// 6. VISIBLE WORKING TAB LIFECYCLE (`active: true`)
 // ==========================================
-function createAndWaitForTabComplete(url,timeoutMs=60000,silentBackground=true){
+async function focusTabAndWindow(tab) {
+  if (!tab || !tab.id) return;
+  try {
+    await chrome.tabs.update(tab.id, { active: true });
+    if (tab.windowId !== undefined && chrome.windows?.update) {
+      await chrome.windows.update(tab.windowId, { focused: true });
+    }
+  } catch (e) {}
+}
+
+function createAndWaitForTabComplete(url,timeoutMs=60000,silentBackground=false){
   return new Promise((resolve,reject)=>{
     let tabId=null,done=false;
     function cleanup(){clearTimeout(timer);chrome.tabs.onUpdated.removeListener(update);chrome.tabs.onRemoved.removeListener(removed);}
-    function finish(err,tab){if(done)return;done=true;cleanup();err?reject(err):resolve(tab);}
+    function finish(err,tab){if(done)return;done=true;cleanup();if(err&&tabId)void safelyCloseTab(tabId);err?reject(err):resolve(tab);}
     function update(id,change,tab){if(id===tabId&&change.status==='complete')finish(null,tab);}
     function removed(id){if(id===tabId)finish(new Error('TAB_CLOSED'));}
     const timer=setTimeout(()=>finish(new Error('TAB_LOAD_TIMEOUT')),timeoutMs);
     chrome.tabs.onUpdated.addListener(update);chrome.tabs.onRemoved.addListener(removed);
     chrome.tabs.create({url,active:!silentBackground},tab=>{
       if(chrome.runtime.lastError||!tab)return finish(new Error('TAB_CREATE_FAILED'));
-      tabId=tab.id;activeTabId=tab.id;
+      tabId=tab.id;if(done){void safelyCloseTab(tab.id);return;}activeTabId=tab.id;
+      if(!silentBackground)void focusTabAndWindow(tab);
       if(shouldAbortQueue){void safelyCloseTab(tab.id);return finish(new Error('QUEUE_ABORTED'));}
       if(tab.status==='complete')finish(null,tab);
     });
@@ -138,56 +149,80 @@ function createAndWaitForTabComplete(url,timeoutMs=60000,silentBackground=true){
 function navigateExistingTabAndWait(tabId, url, timeoutMs = 35000) {
   return new Promise((resolve, reject) => {
     let finished = false;
-
+    function cleanup() {
+      clearTimeout(timer);
+      chrome.tabs.onUpdated.removeListener(listener);
+      chrome.tabs.onRemoved.removeListener(removedListener);
+    }
+    function finish(err, tab) {
+      if (finished) return;
+      finished = true;
+      cleanup();
+      err ? reject(err) : resolve(tab);
+    }
     const timer = setTimeout(() => {
-      if (!finished) {
-        finished = true;
-        chrome.tabs.onUpdated.removeListener(listener);
-        reject(new Error(`Хуудас шилжих хугацаа хэтэрлээ: ${url}`));
-      }
+      finish(new Error(`Хуудас шилжих хугацаа хэтэрлээ: ${url}`));
     }, timeoutMs);
 
     const listener = (updatedTabId, changeInfo, tab) => {
       if (updatedTabId === tabId && changeInfo.status === 'complete') {
-        finished = true;
-        clearTimeout(timer);
-        chrome.tabs.onUpdated.removeListener(listener);
-        resolve(tab);
+        finish(null, tab);
       }
+    };
+    const removedListener = (removedId) => {
+      if (removedId === tabId) finish(new Error('TAB_CLOSED'));
     };
 
     chrome.tabs.onUpdated.addListener(listener);
-    chrome.tabs.update(tabId, { url, active: false }, () => {
+    chrome.tabs.onRemoved.addListener(removedListener);
+    chrome.tabs.update(tabId, { url, active: true }, (tab) => {
       if (chrome.runtime.lastError) {
-        finished = true;
-        clearTimeout(timer);
-        chrome.tabs.onUpdated.removeListener(listener);
-        reject(new Error(chrome.runtime.lastError.message));
+        finish(new Error(chrome.runtime.lastError.message));
+        return;
       }
+      if (tab) void focusTabAndWindow(tab);
     });
   });
 }
 
 async function safelyCloseTab(tabId) {
-  if (!tabId) return;
-  try {
-    await chrome.tabs.remove(tabId);
-  } catch (e) {}
-  if (activeTabId === tabId) activeTabId = null;
+  if (!Number.isInteger(tabId)) return true;
+  let lastError;
+  for(let attempt=0;attempt<3;attempt++){
+    try{
+      await boundedTask(()=>new Promise((resolve,reject)=>{
+        const result=chrome.tabs.remove(tabId,()=>{const error=chrome.runtime.lastError;error?reject(new Error(error.message)):resolve();});
+        if(result?.then)result.then(resolve,reject);
+      }),3000,'TAB_CLOSE_TIMEOUT');
+      if(chrome.tabs.get){
+        const exists=await boundedTask(()=>new Promise(resolve=>chrome.tabs.get(tabId,tab=>{const error=chrome.runtime.lastError;resolve(!error&&!!tab);})),2000,'TAB_CLOSE_VERIFY_TIMEOUT');
+        if(exists)throw new Error('TAB_STILL_OPEN');
+      }
+      if(activeTabId===tabId)activeTabId=null;
+      return true;
+    }catch(error){
+      lastError=error;
+      if(/No tab with id|Invalid tab ID/i.test(error.message)){if(activeTabId===tabId)activeTabId=null;return true;}
+    }
+  }
+  await broadcastLog('Таб хааж чадсангүй: '+tabId+' · '+lastError.message,'error');
+  return false;
 }
+
+async function boundedTask(operation,ms,label){let timer;try{return await Promise.race([Promise.resolve().then(operation),new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error(label)),ms);})]);}finally{clearTimeout(timer);}}
 
 async function executeTaskOnTab(tabId, actionName, taskPayload, timeoutMs = 120000) {
   let scriptReady = false,injected=false;
   for (let attempt = 1; attempt <= 14; attempt++) {
     if (shouldAbortQueue) throw new Error('QUEUE_ABORTED');
     try {
-      const pingResp = await chrome.tabs.sendMessage(tabId, { action: 'PING_CONTENT_SCRIPT' });
+      const pingResp = await boundedTask(()=>chrome.tabs.sendMessage(tabId, { action: 'PING_CONTENT_SCRIPT' }),2000,'CONTENT_PING_TIMEOUT');
       if (pingResp && pingResp.ready) {
         scriptReady = true;
         break;
       }
     } catch (e) {
-      if(!injected&&chrome.scripting){injected=true;try{await chrome.scripting.executeScript({target:{tabId},files:['content-facebook.js']});}catch(injectError){throw new Error('CONTENT_ATTACH_FAILED: '+injectError.message);}}
+      if(!injected&&chrome.scripting){injected=true;try{await boundedTask(()=>chrome.scripting.executeScript({target:{tabId},files:['content-facebook.js']}),8000,'CONTENT_INJECT_TIMEOUT');}catch(injectError){throw new Error('CONTENT_ATTACH_FAILED: '+injectError.message);}}
     }
     await sleepWithAbortCheck(700);
   }
@@ -197,27 +232,43 @@ async function executeTaskOnTab(tabId, actionName, taskPayload, timeoutMs = 1200
   }
 
   return new Promise((resolve, reject) => {
+    let settled = false;
+    function finish(err, val) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      chrome.tabs.onRemoved?.removeListener(onRemoved);
+      err ? reject(err) : resolve(val);
+    }
+    function onRemoved(removedId) {
+      if (removedId === tabId) finish(new Error('TAB_CLOSED'));
+    }
+    chrome.tabs.onRemoved?.addListener(onRemoved);
     const timer = setTimeout(() => {
-      reject(new Error(`Даалгаврын хугацаа (${Math.round(timeoutMs / 1000)}с) дууслаа.`));
+      finish(new Error(`Даалгаврын хугацаа (${Math.round(timeoutMs / 1000)}с) дууслаа.`));
     }, timeoutMs);
 
     chrome.tabs.sendMessage(tabId, { action: actionName, payload: taskPayload }, (response) => {
-      clearTimeout(timer);
       if (chrome.runtime.lastError) {
-        reject(new Error(chrome.runtime.lastError.message));
+        finish(new Error(chrome.runtime.lastError.message));
         return;
       }
-      resolve(response || { ok: false, error: 'Хариу ирсэнгүй' });
+      finish(null, response || { ok: false, error: 'Хариу ирсэнгүй' });
     });
   });
 }
 
 // ==========================================
-// 7. SILENT POST & PHONE LEAD SCRAPER
+// 7. VISIBLE POST & PHONE LEAD SCRAPER
 // ==========================================
 async function runFacebookPostLeadScraper(keyword, currentTabOnly = false) {
   if (isQueueRunning) {
     await broadcastLog('Өөр даалгавар ажиллаж байна.', 'warn');
+    return;
+  }
+  const cleanKeyword = String(keyword || '').trim().slice(0, 500);
+  if (!currentTabOnly && !cleanKeyword) {
+    await broadcastLog('[Lead Scraper] ❌ Хайх үг эсвэл Facebook холбоос оруулна уу.', 'error');
     return;
   }
   isQueueRunning = true;
@@ -235,15 +286,24 @@ async function runFacebookPostLeadScraper(keyword, currentTabOnly = false) {
       }
       const activeFb = fbTabs.find((t) => t.active) || fbTabs[0];
       targetTabId = activeFb.id;
-      await broadcastLog(`[Lead Scraper] Нээлттэй Facebook хуудаснаас далд горимоор зар & утас ухаж байна...`, 'info');
+      await focusTabAndWindow(activeFb);
+      await broadcastLog(`[Lead Scraper] Нээлттэй Facebook хуудас руу шилжиж зар & утас ухаж байна...`, 'info');
     } else {
-      const isDirectUrl = /^https?:\/\/(www\.|m\.|web\.)?facebook\.com\//i.test(keyword);
-      const targetUrl = isDirectUrl
-        ? keyword
-        : `https://www.facebook.com/search/posts/?q=${encodeURIComponent(keyword)}`;
+      const isDirectUrl = /^https?:\/\/(www\.|m\.|web\.)?facebook\.com\//i.test(cleanKeyword);
+      let targetUrl;
+      if (isDirectUrl) {
+        const parsed = new URL(cleanKeyword);
+        parsed.protocol = 'https:';
+        if (!/(^|\.)facebook\.com$/i.test(parsed.hostname) || /^\/(logout|login|checkpoint)(\/|\?|$)/i.test(parsed.pathname)) {
+          throw new Error('Зөв Facebook холбоос оруулна уу.');
+        }
+        targetUrl = parsed.href;
+      } else {
+        targetUrl = `https://www.facebook.com/search/posts/?q=${encodeURIComponent(cleanKeyword)}`;
+      }
 
-      await broadcastLog(`[Lead Scraper] Далд горимоор "${keyword}" зарын пост болон утасны дугаарыг ухаж байна...`, 'info');
-      createdTab = await createAndWaitForTabComplete(targetUrl, 35000, true);
+      await broadcastLog(`[Lead Scraper] "${cleanKeyword}" зарын пост болон утасны дугаарыг ухаж байна...`, 'info');
+      createdTab = await createAndWaitForTabComplete(targetUrl, 35000, false);
       targetTabId = createdTab.id;
       await sleepWithAbortCheck(700);
     }
@@ -252,7 +312,7 @@ async function runFacebookPostLeadScraper(keyword, currentTabOnly = false) {
     let result = await executeTaskOnTab(
       targetTabId,
       'EXECUTE_FB_POST_SCRAPE',
-      { keyword: keyword || '', maxScrolls: 16 },
+      { keyword: cleanKeyword, maxScrolls: 16 },
       180000
     );
 
@@ -260,15 +320,15 @@ async function runFacebookPostLeadScraper(keyword, currentTabOnly = false) {
     let leads = result.leads || [];
 
     // Fallback: if /search/posts/ returned 0 leads and we opened a search tab, automatically try /search/top/
-    if (!currentTabOnly && createdTab && leads.length === 0 && !/^https?:\/\//i.test(keyword)) {
+    if (!currentTabOnly && createdTab && leads.length === 0 && !/^https?:\/\//i.test(cleanKeyword)) {
       await broadcastLog(`[Lead Scraper] Нийтлэлүүдийн ерөнхий хайлтаас (/search/top/) үргэлжлүүлэн ухаж байна...`, 'info');
-      const topUrl = `https://www.facebook.com/search/top/?q=${encodeURIComponent(keyword)}`;
+      const topUrl = `https://www.facebook.com/search/top/?q=${encodeURIComponent(cleanKeyword)}`;
       await navigateExistingTabAndWait(createdTab.id, topUrl, 35000);
       await sleepWithAbortCheck(700);
       result = await executeTaskOnTab(
         createdTab.id,
         'EXECUTE_FB_POST_SCRAPE',
-        { keyword, maxScrolls: 7 },
+        { keyword: cleanKeyword, maxScrolls: 7 },
         120000
       );
       if (!result.ok) throw new Error(result.error || 'SCRAPE_FAILED');
@@ -276,8 +336,8 @@ async function runFacebookPostLeadScraper(keyword, currentTabOnly = false) {
     }
 
     const old = (await chrome.storage.local.get('scrapedLeads')).scrapedLeads || [];
-    leads = Array.from(new Map([...old, ...leads].map(l=>[l.url || l.id,l])).values()).slice(-5000);
-    await chrome.storage.local.set({ scrapedLeads: leads });
+    leads = await atomic(async()=>{const latest=(await chrome.storage.local.get('scrapedLeads')).scrapedLeads||[];const merged=RainyLeads.merge([...latest,...leads]);await chrome.storage.local.set({scrapedLeads:merged});return merged;});
+
     chrome.runtime.sendMessage({ action: 'SCRAPED_LEADS_UPDATED', leads }).catch(() => {});
 
     const withPhoneCount = leads.filter((l) => Boolean(l.phone)).length;
@@ -298,11 +358,16 @@ async function runFacebookPostLeadScraper(keyword, currentTabOnly = false) {
 }
 
 // ==========================================
-// 8. SILENT FACEBOOK GROUP SCRAPER
+// 8. VISIBLE FACEBOOK GROUP SCRAPER
 // ==========================================
 async function runFacebookGroupScraper({ mode, keyword, autoJoin }) {
   if (isQueueRunning) {
     await broadcastLog('Өөр даалгавар ажиллаж байна.', 'warn');
+    return;
+  }
+  const cleanKeyword = String(keyword || '').trim().slice(0, 300);
+  if (mode !== 'joined' && !cleanKeyword) {
+    await broadcastLog('[Group Scraper] ❌ Хайх группийн түлхүүр үг оруулна уу.', 'error');
     return;
   }
   isQueueRunning = true;
@@ -312,19 +377,19 @@ async function runFacebookGroupScraper({ mode, keyword, autoJoin }) {
   const targetUrl =
     mode === 'joined'
       ? 'https://www.facebook.com/groups/joins/'
-      : `https://www.facebook.com/search/groups/?q=${encodeURIComponent(keyword)}`;
+      : `https://www.facebook.com/search/groups/?q=${encodeURIComponent(cleanKeyword)}`;
 
   let tab = null;
   try {
-    await broadcastLog(`[Group Scraper] Далд горимоор группүүдийг хайж байна...`, 'info');
-    tab = await createAndWaitForTabComplete(targetUrl, 35000, true);
+    await broadcastLog(`[Group Scraper] Facebook цонх руу шилжиж группүүдийг хайж байна...`, 'info');
+    tab = await createAndWaitForTabComplete(targetUrl, 35000, false);
     await sleepWithAbortCheck(700);
 
     scrapeTabId=tab.id;scrapeOwnsTab=true;
     const result = await executeTaskOnTab(
       tab.id,
       'EXECUTE_FB_GROUP_SCRAPE',
-      { mode, keyword, autoJoin, maxScrolls: 6 },
+      { mode, keyword: cleanKeyword, autoJoin, maxScrolls: 6 },
       90000
     );
 
@@ -344,4 +409,3 @@ async function runFacebookGroupScraper({ mode, keyword, autoJoin }) {
     await setQueueStatus('IDLE');
   }
 }
-

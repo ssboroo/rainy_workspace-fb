@@ -3,17 +3,54 @@
 (() => {
   if(window.__RAINY_FB_SUITE_LOADED__)return;
   window.__RAINY_FB_SUITE_LOADED__=true;
-  window.__RAINY_FB_SUITE_VERSION__='5.2.0';
+  window.__RAINY_FB_SUITE_VERSION__='5.4.0';
 
   let taskAborted = false;
   function checkAbort(){ if(taskAborted)throw new Error('QUEUE_ABORTED'); }
+
+  function updateHud(statusText, subText = '', tone = 'info') {
+    try {
+      let hud = document.getElementById('rainy-hud-container');
+      if (!hud) {
+        hud = document.createElement('div');
+        hud.id = 'rainy-hud-container';
+        hud.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:2147483647;width:320px;padding:12px 14px;border-radius:12px;background:rgba(13,23,40,0.95);border:1px solid #3288ff;color:#edf4ff;font:12px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;box-shadow:0 10px 30px rgba(0,0,0,0.45);pointer-events:none;backdrop-filter:blur(8px);';
+        const head = document.createElement('div');
+        head.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:5px;font-weight:700;color:#7ed5ff;font-size:11px;letter-spacing:0.4px;';
+        const dot = document.createElement('span');
+        dot.id = 'rainy-hud-dot';
+        dot.style.cssText = 'width:8px;height:8px;border-radius:50%;background:#65e6ae;box-shadow:0 0 8px #65e6ae;flex:none;';
+        const title = document.createElement('span');
+        title.textContent = 'RAINY FB PRO · АЖИЛЛАЖ БАЙНА';
+        head.append(dot, title);
+        const main = document.createElement('div');
+        main.id = 'rainy-hud-status';
+        main.style.cssText = 'font-size:12px;font-weight:600;color:#ffffff;word-break:break-word;';
+        const sub = document.createElement('div');
+        sub.id = 'rainy-hud-sub';
+        sub.style.cssText = 'font-size:10px;color:#9bb4d4;margin-top:3px;word-break:break-word;';
+        hud.append(head, main, sub);
+        (document.body || document.documentElement).appendChild(hud);
+      }
+      const statusEl = document.getElementById('rainy-hud-status');
+      const subEl = document.getElementById('rainy-hud-sub');
+      const dotEl = document.getElementById('rainy-hud-dot');
+      if (statusEl && statusText) statusEl.textContent = statusText;
+      if (subEl && subText !== null) subEl.textContent = subText;
+      if (dotEl) {
+        dotEl.style.background = tone === 'error' ? '#ff7596' : tone === 'success' ? '#65e6ae' : '#51b9ff';
+      }
+    } catch (e) {}
+  }
+
   function pageGate(){
     if(/\/(login|checkpoint)(\/|\?|$)/.test(location.pathname)||document.querySelector('input[name="email"], input[name="pass"]'))throw new Error('FACEBOOK_LOGIN_OR_CHECKPOINT');
     if(navigator.onLine===false)throw new Error('OFFLINE');
     const notices=Array.from(document.querySelectorAll('[role="alert"],[role="dialog"]')).map(x=>normalizeText(x.innerText||'')).join(' ');
-    if(/you.re temporarily blocked|you can.t use this feature right now|we restrict certain activity|action blocked|temporarily restricted|түр хориглосон|үйлдлийг хязгаарласан|түр хязгаарласан/.test(notices))throw new Error('FB_RESTRICTION');
+    if(/you.re temporarily blocked|you can.t use this feature right now|we restrict certain activity|action blocked|temporarily restricted|security check|confirm your identity|unusual activity|түр хориглосон|үйлдлийг хязгаарласан|түр хязгаарласан/.test(notices))throw new Error('FB_RESTRICTION');
   }
   function logToExtension(message, level = 'info') {
+    updateHud(message, null, level);
     chrome.runtime.sendMessage({
       action: 'CONTENT_LOG',
       message: `[FB] ${message}`,
@@ -27,7 +64,7 @@
   }
 
   function normalizeText(str) {
-    return (str || '').toString().toLowerCase().replace(/\s+/g, ' ').trim();
+    return (str || '').toString().replace(/[\u200B-\u200D\uFEFF]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
   }
 
   /**
@@ -111,8 +148,10 @@
     pageGate();checkAbort();
     const triggerPhrases = [
       'write something', 'create a public post', "what's on your mind",
-      'start a discussion', 'юу бодож байна', 'нийтлэл бичих', 'ямар нэгэн зүйл бичээрэй',
-      'хэлэлцүүлэг эхлүүлэх', 'пост бичих', 'напишите что-нибудь', 'создать публикацию'
+      'start a discussion', 'write a post', 'create a post',
+      'юу бодож байна', 'нийтлэл бичих', 'ямар нэгэн зүйл бичээрэй',
+      'хэлэлцүүлэг эхлүүлэх', 'пост бичих', 'пост оруулах', 'санал бодлоо хуваалцаарай',
+      'напишите что-нибудь', 'создать публикацию'
     ];
 
     const findBtn = () => {
@@ -121,11 +160,13 @@
       ).filter(isVisible);
 
       for (const btn of buttons) {
+        if (btn.closest && btn.closest('[role="article"]')) continue;
         const text = normalizeText(btn.textContent || btn.getAttribute('aria-label') || '');
-        if (triggerPhrases.some((p) => text.includes(p))) return btn;
+        if (text.length > 0 && text.length <= 100 && triggerPhrases.some((p) => text.includes(p))) return btn;
       }
 
       const photoActionBtn = buttons.find((b) => {
+        if (b.closest && b.closest('[role="article"]')) return false;
         const t = normalizeText(b.textContent || b.getAttribute('aria-label') || '');
         return t === 'photo/video' || t === 'зураг/видео' || t === 'фото/видео';
       });
@@ -504,6 +545,7 @@
   async function executeFacebookPostLeadScrape(payload) {
     const { keyword = '', maxScrolls = 8 } = payload || {};
     pageGate();checkAbort();
+    updateHud('Зар & утасны дугаар хайж байна...', keyword ? `Түлхүүр үг: ${keyword}` : 'Нээлттэй хуудаснаас ухаж байна', 'info');
     logToExtension(`"${keyword}" заруудыг 4 давхар алгоритмаар ухаж байна...`, 'info');
 
     await waitForInitialFeedContent(7500);
@@ -616,6 +658,7 @@
       return (b.timestamp || 0) - (a.timestamp || 0);
     });
 
+    updateHud(`✅ Нийт ${leads.length} зар олдлоо!`, 'Өргөтгөлийн Зар / утас цэснээс харна уу', 'success');
     return { ok: true, leads };
   }
 
@@ -639,6 +682,7 @@
   async function executeFacebookGroupScrape(payload) {
     pageGate();checkAbort();
     const { mode = 'keyword', autoJoin = false, maxScrolls = 6 } = payload || {};
+    updateHud('Группүүдийг хайж байна...', mode === 'joined' ? 'Миний нэгдсэн группүүд' : 'Хайлтын үр дүн', 'info');
     logToExtension(`Групп татаж байна (${mode === 'joined' ? 'Миний группүүд' : 'Хайлтаар'})...`, 'info');
 
     await waitForInitialFeedContent(5000);
@@ -695,6 +739,7 @@
       await fastSleep(1400);
     }
 
+    updateHud(`✅ ${map.size} групп олдлоо!`, 'Групп цэснээс сонгож нэмнэ үү', 'success');
     return { ok: true, groups: Array.from(map.values()), joinedCount };
   }
 
@@ -702,6 +747,7 @@
   // SECTION 6: FAST GROUP POSTING WORKFLOW
   // =========================================================================
   async function injectTextIntoLexicalEditor(editor, text) {
+    if (!text || !String(text).trim()) return;
     simulateHumanClick(editor);
     editor.focus();
     await fastSleep(250);
@@ -725,14 +771,14 @@
 
     await fastSleep(450);
 
-    const checkSnippet = normalizeText(text.slice(0, 15));
-    let currentText = normalizeText(editor.innerText || '');
+    const checkSnippet = normalizeText(text.slice(0, 25));
+    let currentText = normalizeText(editor.innerText || editor.textContent || '');
 
     if (!currentText.includes(checkSnippet)) {
       document.execCommand('selectAll', false, null);
       document.execCommand('insertText', false, text);
       await fastSleep(350);
-      currentText = normalizeText(editor.innerText || '');
+      currentText = normalizeText(editor.innerText || editor.textContent || '');
     }
 
     if (!currentText.includes(checkSnippet)) {
@@ -746,7 +792,12 @@
       }));
       await fastSleep(350);
     }
-    if(text.trim()&&!normalizeText(editor.innerText||editor.textContent||'').includes(normalizeText(text)))throw new Error('EDITOR_TEXT_MISMATCH');
+    const finalNorm = normalizeText(editor.innerText || editor.textContent || '');
+    const targetNorm = normalizeText(text);
+    const probeNorm = targetNorm.slice(0, Math.min(80, targetNorm.length));
+    if (targetNorm && !finalNorm.includes(targetNorm) && !finalNorm.includes(probeNorm)) {
+      throw new Error('EDITOR_TEXT_MISMATCH');
+    }
   }
 
   function dataUrlToFile(dataUrl, filename, mimeType = 'image/jpeg') {
@@ -806,11 +857,12 @@
     fileInput.dispatchEvent(new Event('input', { bubbles: true }));
     fileInput.dispatchEvent(new Event('change', { bubbles: true }));
 
+    const expectedPreviews = Math.min(images.length, 4);
     await waitForElement(()=>{
       checkAbort();pageGate();
       const busy=dialog.querySelector('[role="progressbar"],[aria-busy="true"]');
       const photos=Array.from(dialog.querySelectorAll('img')).filter(x=>x.complete&&x.naturalWidth>0&&!baseline.has(x.currentSrc||x.src));
-      return !busy&&photos.length>=images.length;
+      return !busy&&(photos.length>=images.length||photos.length>=expectedPreviews);
     },90000);
     return {count:images.length};
   }
@@ -818,17 +870,21 @@
   function findPostSubmitButton(dialogRoot) {
     const scope = dialogRoot || document;
     const exactLabels = ['post', 'нийтлэх', 'submit', 'илгээх', 'опубликовать'];
+    const isEnabled = (b) => b && b.getAttribute('aria-disabled') !== 'true' && !b.disabled;
 
-    const ariaBtns = Array.from(scope.querySelectorAll('div[role="button"][aria-label], button[aria-label]')).filter(isVisible);
-    for (const btn of ariaBtns) {
-      if (exactLabels.includes(normalizeText(btn.getAttribute('aria-label')))) return btn;
-    }
+    const ariaBtns = Array.from(scope.querySelectorAll('div[role="button"][aria-label], button[aria-label]')).filter(
+      (b) => isVisible(b) && exactLabels.includes(normalizeText(b.getAttribute('aria-label')))
+    );
+    const enabledAria = ariaBtns.find(isEnabled);
+    if (enabledAria) return enabledAria;
 
-    const textBtns = Array.from(scope.querySelectorAll('div[role="button"], button[type="submit"]')).filter(isVisible);
-    for (const btn of textBtns) {
-      if (exactLabels.includes(normalizeText(btn.textContent))) return btn;
-    }
-    return null;
+    const textBtns = Array.from(scope.querySelectorAll('div[role="button"], button[type="submit"]')).filter(
+      (b) => isVisible(b) && exactLabels.includes(normalizeText(b.textContent))
+    );
+    const enabledText = textBtns.find(isEnabled);
+    if (enabledText) return enabledText;
+
+    return ariaBtns[0] || textBtns[0] || null;
   }
 
   async function clickPostAndConfirm(dialog,payload) {
@@ -843,21 +899,28 @@
     const permit=await chrome.runtime.sendMessage({action:'POST_SUBMIT_PERMIT',jobId:payload.jobId,index:payload.index,attemptId:payload.attemptId});
     if(!permit?.ok)throw new Error('SUBMIT_NOT_AUTHORIZED');
     checkAbort();pageGate();simulateHumanClick(enabledBtn);
-    const deadline=Date.now()+45000;
+    const submittedAt=Date.now();
+    const deadline=submittedAt+8000;
     while(Date.now()<deadline){
       checkAbort();pageGate();
       const fresh=Array.from(document.querySelectorAll('[role="alert"],[role="status"]')).filter(isVisible).map(x=>normalizeText(x.innerText)).filter(t=>!baseline.has(t));
-      if(fresh.some(t=>/pending approval|submitted.*approval|waiting.*approval|зөвшөөрөл хүлээ|хянуулахаар илгээ/.test(t)))return {status:'PENDING_APPROVAL',note:'Админы хяналт хүлээж байна'};
+      if(fresh.some(t=>/pending approval|submitted.*approval|waiting.*approval|post is pending|admin.*approval|зөвшөөрөл хүлээ|хянуулахаар илгээ/.test(t)))return {status:'PENDING_APPROVAL',note:'Админы хяналт хүлээж байна'};
       // A closed composer alone never proves success. Require a new post link AND matching content.
-      const text=normalizeText(payload.formData.description||'');
+      const text=normalizeText(payload.formData?.description||'');
+      const textProbe=text.slice(0,80);
+      const minImages=Math.min(payload.images?.length||0,4);
       const articles=Array.from(document.querySelectorAll('[role="article"],[data-pagelet^="FeedUnit"]')).filter(isVisible);
       for(const card of articles){
         const a=Array.from(card.querySelectorAll('a[href]')).find(a=>/\/(?:posts|permalink)\/|story_fbid=/.test(a.href)&&!oldLinks.has(canonical(a.href)));
+        if(!a)continue;
         const content=normalizeText(card.innerText||'');
-        if(a&&text.length>=1&&content.includes(text)&&(!payload.images?.length||Array.from(card.querySelectorAll('img')).filter(x=>x.complete&&x.naturalWidth>100).length>=payload.images.length))return {status:'PUBLISHED',postUrl:a.href,note:'Шинэ постын холбоос, агуулгыг шалгасан'};
+        const textMatches=text.length>=1?(content.includes(text)||(text.length>80&&content.includes(textProbe))):Boolean(payload.images?.length);
+        const imagesMatch=!payload.images?.length||Array.from(card.querySelectorAll('img')).filter(x=>x.complete&&x.naturalWidth>100).length>=minImages;
+        if(textMatches&&imagesMatch)return {status:'PUBLISHED',postUrl:a.href,note:'Шинэ постын холбоос, агуулгыг шалгасан'};
       }
       const closed=!isVisible(dialog)||!dialog.isConnected;
-      if(closed&&fresh.some(t=>/^(?:your post (?:was |has been )?(?:published|posted)|post (?:published|created|successful)|нийтлэл (?:амжилттай )?нийтлэгдлээ|таны нийтлэл нийтлэгдлээ|публикация опубликована)[.!\s]*$/.test(t)))return {status:'PUBLISHED',note:'Facebook нийтлэл амжилттай орсныг мэдэгдсэн'};
+      if(closed&&fresh.some(t=>/^(?:your post (?:was |has been )?(?:published|posted)|post (?:published|created|successful)|нийтлэл (?:амжилттай )?(?:нийтлэгдлээ|нийтлэгдсэн|орлоо)|таны нийтлэл (?:нийтлэгдлээ|нийтлэгдсэн)|публикация опубликована)[.!\s]*$/.test(t)))return {status:'PUBLISHED',note:'Facebook нийтлэл амжилттай орсныг мэдэгдсэн'};
+      if(closed&&Date.now()-submittedAt>=1500)return {status:'UNKNOWN',note:'Нийтлэх товч дарагдсан; цонх хаагдсан. Дахин илгээхгүй.'};
       if(fresh.some(t=>/couldn.t post|unable to post|something went wrong|нийтэлж чадсангүй|алдаа гарлаа/.test(t)))return {status:'UNKNOWN',error:'FACEBOOK_REPORTED_ERROR_AFTER_SUBMIT'};
       await fastSleep(700);
     }
@@ -866,12 +929,23 @@
   async function executeFacebookGroupPost(payload) {
     pageGate();checkAbort();
     const images=payload.images||[];
+    const stepLabel = payload.total ? `Групп ${(payload.index||0)+1}/${payload.total}` : 'Групп нийтлэлт';
+    updateHud('Групп дээр нийтэлж байна...', `${stepLabel} · ${location.pathname}`, 'info');
     const composer=await openGroupComposerModal();
-    if(composer.skipped)return {ok:false,status:'SKIPPED',skipped:true,error:composer.reason};
+    if(composer.skipped){
+      updateHud(`Алгаслаа: ${composer.reason}`, stepLabel, 'error');
+      return {ok:false,status:'SKIPPED',skipped:true,error:composer.reason};
+    }
     const {dialog,editor}=composer;
-    await injectTextIntoLexicalEditor(editor,payload.formData.description||'');
-    if(images.length)await uploadPhotosToModal(dialog,images);
+    updateHud('Постын текст оруулж байна...', stepLabel, 'info');
+    await injectTextIntoLexicalEditor(editor,payload.formData?.description||'');
+    if(images.length){
+      updateHud(`${images.length} зураг хавсаргаж байна...`, stepLabel, 'info');
+      await uploadPhotosToModal(dialog,images);
+    }
+    updateHud('Нийтлэх товч дарж баталгаажуулж байна...', stepLabel, 'info');
     const result=await clickPostAndConfirm(dialog,payload);
+    updateHud(result.status==='PUBLISHED'?'✅ Нийтлэл амжилттай орлоо!':`Төлөв: ${result.status}`, stepLabel, result.status==='PUBLISHED'?'success':'info');
     await chrome.runtime.sendMessage({action:'POST_RECEIPT',jobId:payload.jobId,index:payload.index,attemptId:payload.attemptId,result});
     return {ok:result.status==='PUBLISHED',...result};
   }
@@ -882,8 +956,11 @@
 
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (sender?.id && sender.id !== chrome.runtime.id) return false;
+    if (!message || typeof message.action !== 'string') return false;
+
     if (message.action === 'PING_CONTENT_SCRIPT') {
-      sendResponse({ ready: true, host: 'facebook.com',version:'5.2.0' });
+      sendResponse({ ready: true, host: 'facebook.com', version: '5.6.7' });
       return false;
     }
 
