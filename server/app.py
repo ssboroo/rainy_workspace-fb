@@ -47,6 +47,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY,action TEXT NOT NULL,order_id TEXT,actor TEXT,created INTEGER NOT NULL);
         CREATE TABLE IF NOT EXISTS outbox(id TEXT PRIMARY KEY,payload TEXT NOT NULL,sent INTEGER NOT NULL DEFAULT 0,attempts INTEGER NOT NULL DEFAULT 0,next_at INTEGER NOT NULL DEFAULT 0);
         ''')
+        db.execute('UPDATE devices SET trial_expires=MIN(trial_expires,created+86400000)')
         if 'activation_days' not in {r['name'] for r in db.execute('PRAGMA table_info(orders)')}:db.execute('ALTER TABLE orders ADD COLUMN activation_days INTEGER')
 
 def request_json(url,method='GET',data=None,headers=None):
@@ -88,8 +89,8 @@ def register(device_id,secret):
         row=db.execute('SELECT * FROM devices WHERE id=?',(device_id,)).fetchone()
         if row and not hmac.compare_digest(row['secret_hash'],sha(secret)):raise PermissionError('DEVICE_AUTH_FAILED')
         if not row:
-            db.execute('INSERT INTO devices(id,secret_hash,trial_expires,created) VALUES(?,?,?,?)',(device_id,sha(secret),now()+3*86400000,now()))
-            if ADMIN_CHAT:enqueue(db,'device-'+device_id,f'ШИНЭ ТӨХӨӨРӨМЖ\nDevice: {device_id}\nTrial: 3 хоног\nДуусах: {date_mn(now()+3*86400000)} (УБ)',[[{'text':'Эрх олгох · 30 / 90 / 365','callback_data':'device:'+device_id}]])
+            db.execute('INSERT INTO devices(id,secret_hash,trial_expires,created) VALUES(?,?,?,?)',(device_id,sha(secret),now()+86400000,now()))
+            if ADMIN_CHAT:enqueue(db,'device-'+device_id,f'ШИНЭ ТӨХӨӨРӨМЖ\nDevice: {device_id}\nTrial: 24 цаг\nДуусах: {date_mn(now()+86400000)} (УБ)',[[{'text':'Эрх олгох · 30 / 90 / 365','callback_data':'device:'+device_id}]])
             row=db.execute('SELECT * FROM devices WHERE id=?',(device_id,)).fetchone()
         return entitlement(row)
 
@@ -348,7 +349,7 @@ class Handler(BaseHTTPRequestHandler):
             path=urlparse(self.path).path;length=int(self.headers.get('Content-Length','0'))
             if length>262144:return self.reply(413,{'error':'BODY_TOO_LARGE'})
             raw=self.rfile.read(length) if length else b'{}'
-            if path=='/health':return self.reply(200,{'ok':True,'version':'5.6.6','botWebhookConnected':BOT_WEBHOOK_CONNECTED})
+            if path=='/health':return self.reply(200,{'ok':True,'version':'5.6.7','botWebhookConnected':BOT_WEBHOOK_CONNECTED})
             if path=='/webhooks/wire' and self.command=='POST':return self.reply(200,wire_webhook(raw,self.headers.get('WirePayment-Signature','')))
             if path=='/webhooks/telegram' and self.command=='POST':
                 if not TG_SECRET or not hmac.compare_digest(TG_SECRET,self.headers.get('X-Telegram-Bot-Api-Secret-Token','')):raise PermissionError('BAD_TELEGRAM_SECRET')
