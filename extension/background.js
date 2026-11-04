@@ -345,7 +345,14 @@ chrome.runtime.onStartup.addListener(()=>{void ready;});
 chrome.alarms.onAlarm.addListener(alarm=>{void ready.then(async()=>{
   if(alarm.name===TICK)return pump();
   if(alarm.name===RECOVERY){
-    if(!pumping){const {job}=await chrome.storage.local.get('job');if(job?.status==='RUNNING')return pump();}return;
+    if(pumping)return;
+    const {job}=await chrome.storage.local.get('job');
+    if(job?.status==='RUNNING'){
+      const stale=job.items?.some(item=>RainyCore.staleAttempt(item));
+      if(stale){await broadcastLog('MV3 worker тасалдсан байж болзошгүй. Илгээхээс өмнөх ажлыг сэргээж, илгээж эхэлсэн ажлыг давхардуулахгүйн тулд UNKNOWN болгоно.','warn');return recoverQueue();}
+      return pump();
+    }
+    return;
   }
   if(alarm.name!==SCHEDULE)return;
   const {scheduleConfig:c,savedFormData:f,job}=await chrome.storage.local.get(['scheduleConfig','savedFormData','job']);
