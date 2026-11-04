@@ -21,3 +21,13 @@ android {
 dependencies {
     implementation 'org.mozilla.geckoview:geckoview-stable:161.0.20261103075946'
 }
+
+def mobileExtension = layout.buildDirectory.dir('generated/mobile-extension-assets')
+def prepareMobileExtension = tasks.register('prepareMobileExtension', Sync) {
+    from('../../ios/SafariExtension')
+    from('../../../extension/content-facebook.js')
+    into(mobileExtension.map { it.dir('rainy') })
+}
+
+android.sourceSets.main.assets.srcDir(mobileExtension)
+tasks.named('preBuild').configure { dependsOn(prepareMobileExtension) }

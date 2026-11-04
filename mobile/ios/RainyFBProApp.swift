@@ -11,10 +11,10 @@ struct RainyFBProApp: App {
                         .foregroundStyle(.blue)
                     Text("RAINY FB Pro")
                         .font(.title2.bold())
-                    Text("Safari дээр Facebook нээгээд RAINY FB Pro өргөтгөлийг идэвхжүүлнэ үү.")
+                    Text("Safari дээр RAINY FB Pro өргөтгөлийг идэвхжүүлээд Workspace болон Facebook-д зөвшөөрөл өгнө үү.")
                         .multilineTextAlignment(.center)
                         .foregroundStyle(.secondary)
-                    Link("Facebook нээх", destination: URL(string: "https://www.facebook.com/")!)
+                    Link("Workspace нээх", destination: URL(string: "https://workspace.rainy.studio/mobile/")!)
                         .buttonStyle(.borderedProminent)
                 }
                 .padding()
