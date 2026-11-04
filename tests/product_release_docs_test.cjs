@@ -16,7 +16,7 @@ test('public download page links to the current extension release',()=>{
   const currentZip=`rainy-fb-pro-${manifest.version}.zip`;
   assert(downloadPage.includes(`/downloads/${currentZip}`));
   assert(downloadPage.includes(manifest.version));
-  assert(!/5\\.6\\.7/.test(downloadPage));
+  assert(!/5\.6\.7/.test(downloadPage));
 });
 
 test('public product copy describes the broader Facebook audience',()=>{
@@ -34,7 +34,7 @@ test('manual installation instructions explain ZIP extraction and update limitat
 });
 
 test('release documentation matches the manifest version',()=>{
-  assert.equal(readme.split('\\n')[0],`# RAINY FB Pro ${manifest.version}`);
+  assert.equal(readme.split('\n')[0],`# RAINY FB Pro ${manifest.version}`);
   assert(downloadPage.includes(`rainy-fb-pro-${manifest.version}.zip`));
   assert(downloadPage.includes(`RAINY FB Pro ${manifest.version}`));
   assert.equal((readme.match(/^# RAINY FB Pro /gm)||[]).length,1,'README must have exactly one release heading');
@@ -44,7 +44,7 @@ test('homepage and interactive install links match the manifest release',()=>{
   const zip=`rainy-fb-pro-${manifest.version}.zip`;
   assert(homepage.includes(`downloads/${zip}`));
   assert(installScript.includes(`downloads/${zip}`));
-  assert(!/rainy-fb-pro-5\\.[0-7]\\.zip/.test(homepage+installScript));
+  assert(!/rainy-fb-pro-5\.[0-7]\.zip/.test(homepage+installScript));
 });
 
 test('package builder validates the manifest version instead of hard-coding it',()=>{
