@@ -39,7 +39,7 @@
     return {ok:true,value};
   }
   function fingerprint(text,groupUrl,mediaIds=[]) {
-    const normalize=s=>String(s||'').normalize('NFKC').replace(/\\s+/g,' ').trim().toLocaleLowerCase();
+    const normalize=s=>String(s||'').normalize('NFKC').replace(/\s+/g,' ').trim().toLocaleLowerCase();
     return [normalize(text),normalize(groupUrl),...mediaIds.map(normalize).sort()].join('|');
   }
   const api={PROTOCOL_VERSION,ITEM_STATES,TERMINAL,TRANSITIONS,transition,recover,message,validateMessage,fingerprint};
