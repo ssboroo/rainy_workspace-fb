@@ -47,7 +47,7 @@ test('release workflow builds versioned Web Store and public download packages',
 
 test('website download links resolve to a ZIP copied into the static site root',()=>{
   const workflow=read('.github/workflows/webstore-package.yml');
-  assert.match(workflow,/cp .*dist\\/rainy-fb-pro-\\$\\{VERSION\\}-webstore\\.zip.*downloads\\/rainy-fb-pro-\\$\\{VERSION\\}\\.zip/);
+  assert(workflow.includes('cp "dist/rainy-fb-pro-${VERSION}-webstore.zip" "downloads/rainy-fb-pro-${VERSION}.zip"'));
   assert(workflow.includes('git add "public/downloads/rainy-fb-pro-${VERSION}.zip"'));
   assert(workflow.includes('git add "downloads/rainy-fb-pro-${VERSION}.zip"'));
   const version=manifest().version;
@@ -62,5 +62,5 @@ test('README installation guide points to the current website and package',()=>{
   const version=manifest().version;
   assert(docs.includes('https://workspace.rainy.studio/'));
   assert(docs.includes('rainy-fb-pro-'+version+'.zip'));
-  assert(!/5\\.2/.test(docs));
+  assert(!/5\.2/.test(docs));
 });
