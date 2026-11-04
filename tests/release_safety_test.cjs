@@ -44,3 +44,19 @@ test('release workflow builds versioned Web Store and public download packages',
   assert(workflow.includes('rainy-fb-pro-${VERSION}.zip'));
   assert(workflow.includes('actions/upload-artifact@v4'));
 });
+
+
+test('website download links resolve to a ZIP copied into the static site root',()=>{
+  const workflow=read('.github/workflows/webstore-package.yml');
+  assert.match(workflow,/cp .*dist\/rainy-fb-pro-\$\{VERSION\}-webstore\.zip.*downloads\/rainy-fb-pro-\$\{VERSION\}\.zip/);
+  const html=read('index.html');
+  assert(html.includes('downloads/rainy-fb-pro-'+manifest().version+'.zip'));
+});
+
+test('README installation guide points to the current website and package',()=>{
+  const docs=read('README.md');
+  const version=manifest().version;
+  assert(docs.includes('https://workspace.rainy.studio/'));
+  assert(docs.includes('rainy-fb-pro-'+version+'.zip'));
+  assert(!/5\\.2/.test(docs));
+});
