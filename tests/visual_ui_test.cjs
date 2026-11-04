@@ -9,7 +9,7 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
  window.chrome={windows:{create:async opts=>{window.paymentWindow=opts;}},runtime:{getURL:n=>n,sendMessage:async m=>m.action==='GET_LICENSE'?s.entitlement:m.action==='CREATE_ORDER'?{ok:true,id:'TEST',amount:49900,status:'PENDING',checkoutUrl:'https://pay.wire.mn/test'}:{ok:true,message:'Facebook холболт бэлэн.'}},storage:{local:{get:async keys=>{if(typeof keys==='string')keys=[keys];return Object.fromEntries(keys.map(k=>[k,s[k]]));},set:async data=>{const c={};for(const [k,v] of Object.entries(data)){c[k]={oldValue:s[k],newValue:v};s[k]=v;}callbacks.forEach(fn=>fn(c,'local'));},remove:async keys=>keys.forEach(k=>delete s[k])},onChanged:{addListener:fn=>callbacks.push(fn)}},tabs:{create:async()=>{},query:async()=>[{id:1,windowId:1}]},sidePanel:{open:async()=>{}}};
  });
  p.on('pageerror',e=>errors.push(e.message));await p.goto('file://'+base+'/popup.html');await p.waitForTimeout(400);assert.deepEqual(errors,[]);count++;
- assert.equal(await p.locator('body').evaluate(e=>e.offsetWidth),320);assert.equal(await p.locator('body').evaluate(e=>e.offsetHeight),590);count++;
+ assert.equal(await p.locator('body').evaluate(e=>e.offsetWidth),780);assert.equal(await p.locator('body').evaluate(e=>e.offsetHeight),590);count++;
  assert((await p.locator('#licenseDeadline').innerText()).match(/\d{4}-\d{2}-\d{2}/));assert((await p.locator('#licenseCountdown').innerText()).includes('хоног'));count++;
  assert.equal(await p.locator('#serverUrl').count(),0);assert.equal(await p.locator('#connectServer').count(),0);count++;
  for(const tab of ['compose','groupfinder','leads','examples','schedule','protection','report','billing','settings']){
