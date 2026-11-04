@@ -1,48 +1,116 @@
-/* The workspace preview supplies the shared RAINY components and theme. */
+/* Mobile-first layout overrides for the shared desktop popup styles. */
+*, *::before, *::after { box-sizing: border-box; }
+html.fullpage { width: 100%; min-width: 0; min-height: 100%; overflow-x: hidden; }
 html.fullpage body {
-  grid-template-rows: auto auto minmax(0, 1fr) !important;
-  height: 100dvh !important;
+  display: flex !important;
+  flex-direction: column;
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 100vh;
+  min-height: 100dvh;
+  height: auto !important;
+  margin: 0;
+  overflow-x: hidden;
   background: var(--bg);
+  grid-template-rows: none !important;
 }
 header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
   height: auto;
-  min-height: 60px;
-  padding-top: max(8px, env(safe-area-inset-top));
+  min-height: 56px;
+  padding: max(8px, env(safe-area-inset-top)) 12px 8px;
 }
+.brand { min-width: 0; }
 .header-tools, .actions, .utility, .item-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
 }
-nav.tabs { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); }
-nav.tabs button { min-height: 44px; border-radius: 8px; }
-main { width: 100%; max-width: 1000px; margin-inline: auto; }
+nav.tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  padding: 8px 10px;
+}
+nav.tabs button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px 4px;
+  border-radius: 8px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+nav.tabs button svg { flex: 0 0 18px; width: 18px; height: 18px; }
+main {
+  display: block;
+  flex: 1 0 auto;
+  width: 100% !important;
+  max-width: 1000px;
+  min-width: 0;
+  margin-inline: auto;
+  padding: 12px;
+}
 [hidden] { display: none !important; }
-.panel { padding-bottom: max(16px, env(safe-area-inset-bottom)); }
-.section-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.panel { min-width: 0; padding-bottom: max(20px, env(safe-area-inset-bottom)); }
+.section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
 .section-head h2, .panel > .card h2 { font-size: 16px; }
-.surface { display: grid; gap: 10px; }
-.surface label { font-size: 13px; }
-.surface input, .surface textarea, .surface select { display: block; margin-top: 5px; min-height: 44px; font-size: 16px !important; }
+.surface { display: grid; gap: 10px; min-width: 0; }
+.surface label { min-width: 0; font-size: 13px; }
+.surface input, .surface textarea, .surface select {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  margin-top: 5px;
+  font-size: 16px !important;
+}
 .surface textarea { resize: vertical; }
-.form-row, .cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.form-row, .cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  min-width: 0;
+}
 .cards { margin-top: 10px; }
+.card, .item { min-width: 0; max-width: 100%; }
 .item { overflow-wrap: anywhere; }
 .item h3 { margin: 6px 0; }
-.item p { white-space: pre-wrap; }
+.item p { white-space: pre-wrap; overflow-wrap: anywhere; }
 .item small { display: block; color: var(--muted); }
 .item-actions button, .item-actions a, .utility .import {
   display: inline-flex;
   align-items: center;
+  max-width: 100%;
   padding: 6px 9px;
   border: 1px solid var(--line);
   border-radius: 7px;
   background: var(--input);
   color: var(--ink);
   text-decoration: none;
+  overflow-wrap: anywhere;
 }
-main a { color: var(--blue); }
+main a { color: var(--blue); overflow-wrap: anywhere; }
 .panel button, .panel .import, .item-actions a { min-height: 44px; }
 .surface .upload { display: block; white-space: normal; overflow-wrap: anywhere; }
 .upload span { display: block; margin-top: 4px; }
@@ -52,11 +120,21 @@ main a { color: var(--blue); }
 .stats { display: flex; gap: 24px; flex-wrap: wrap; }
 .stats dd { margin: 0; font-size: 24px; font-weight: 700; }
 #toast:not(.show) { display: none; }
-#toast { bottom: max(16px, env(safe-area-inset-bottom)) !important; }
+#toast { right: 12px; bottom: max(16px, env(safe-area-inset-bottom)) !important; left: 12px; max-width: calc(100vw - 24px); }
+.surface #autoPublish { display: inline-block; width: auto; min-height: 0; margin: 0 6px 0 0; }
 
 @media (max-width: 650px) {
-  nav.tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .cards { grid-template-columns: minmax(0, 1fr); }
+  main { padding: 10px; }
+  .cards, .form-row { grid-template-columns: minmax(0, 1fr); }
+  .section-head > * { min-width: 0; }
+  .section-head button { flex: 0 0 auto; }
+  .actions > button, .utility > button, .utility > .import { flex: 1 1 140px; justify-content: center; }
+  .stats { gap: 16px; }
 }
-
-.surface #autoPublish { display: inline-block; width: auto; min-height: 0; margin: 0 6px 0 0; }
+@media (max-width: 360px) {
+  nav.tabs { gap: 4px; padding-inline: 6px; }
+  nav.tabs button { gap: 3px; font-size: 12px; }
+  nav.tabs button svg { flex-basis: 16px; width: 16px; height: 16px; }
+  header { padding-inline: 8px; }
+  main { padding: 8px; }
+}
