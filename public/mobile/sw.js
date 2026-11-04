@@ -1,5 +1,5 @@
 const CACHE_PREFIX='rainy-mobile-shell-';
-const CACHE=CACHE_PREFIX+'v5';
+const CACHE=CACHE_PREFIX+'v6';
 const shellUrl=new URL('./',self.registration.scope);
 const assets=[
  './index.html','./style.css','./app.js','./manifest.webmanifest','../icon.svg',
