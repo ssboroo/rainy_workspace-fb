@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "RAINY FB Pro Mobile",
+  "version": "0.1.0",
+  "description": "RAINY FB Pro Safari companion extension.",
+  "permissions": ["storage"],
+  "host_permissions": ["https://www.facebook.com/*", "https://m.facebook.com/*"],
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [{
+    "matches": ["https://www.facebook.com/*", "https://m.facebook.com/*"],
+    "js": ["content.js"],
+    "run_at": "document_idle"
+  }]
+}
