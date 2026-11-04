@@ -58,7 +58,7 @@ flowchart TB
 1. **Domain core:** platform-independent validation, group/preset models, post drafts, queue transitions, duplicate guard, schedule calculations, media metadata policy, CSV/backup serialization, and license-state presentation.
 2. **Browser adapter:** capability-detected interface for current tab/page, visible group context, file selection, user-confirmed page actions, and safe result reporting. No platform-specific API calls inside domain logic.
 3. **Message protocol:** versioned, schema-validated messages between app and browser extension. Reject unknown message versions and untrusted origins. Never pass Facebook cookies, passwords, or raw session tokens to the companion app.
-4. **Queue state machine:** `PENDING → RUNNING → SUCCEEDED | FAILED | UNKNOWN | NEEDS_USER`. A timeout after a submit action becomes `UNKNOWN`; never blindly retry an uncertain post. Checkpoint, permission errors, rate limits, and policy blocks pause the queue.
+4. **Queue state machine:** `PENDING → RUNNING → SUCCEEDED | FAILED | UNKNOWN | NEEDS_USER`. A timeout after a submit action becomes `UNKNOWN`; never blindly retry an uncertain post. Checkpoint, permission errors, rate limits, and policy blocks pause the queue. **Checkpoint handling** must stop the active queue and require the user to resolve the checkpoint through Facebook's normal flow.
 5. **Persistence:** encrypted platform storage for sensitive settings; IndexedDB/files only for non-sensitive offline drafts where appropriate. Server-side sync is opt-in and authenticated. Backups exclude credentials and session data.
 6. **Observability:** redact post body, phone numbers, cookies, tokens, and uploaded media from logs by default.
 
