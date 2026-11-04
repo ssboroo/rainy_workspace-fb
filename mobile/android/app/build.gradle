@@ -29,5 +29,5 @@ def prepareMobileExtension = tasks.register('prepareMobileExtension', Sync) {
     into(mobileExtension.map { it.dir('rainy') })
 }
 
-android.sourceSets.main.assets.srcDir(mobileExtension)
+android.sourceSets.main.assets.srcDir(mobileExtension.get().asFile)
 tasks.named('preBuild').configure { dependsOn(prepareMobileExtension) }
