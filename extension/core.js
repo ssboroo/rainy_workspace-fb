@@ -38,12 +38,22 @@
   }
   function recover(job) {
     if (!job || !['RUNNING','STOPPING'].includes(job.status)) return job;
-    job.items = (Array.isArray(job.items) ? job.items : []).map(i =>
-      ['PREPARING','SUBMITTING'].includes(i.status)
-        ? {...i, status:'UNKNOWN', error:'WORKER_INTERRUPTED — автоматаар дахин нийтлэхгүй'}
-        : i
-    );
-    job.status = 'PAUSED';
+    const stopping = job.status === 'STOPPING';
+    job.items = (Array.isArray(job.items) ? job.items : []).map(i => {
+      if (i.status === 'PREPARING') {
+        return stopping
+          ? {...i, status:'CANCELLED', error:'Worker interrupted before submit; cancelled by stop request'}
+          : {...i, status:'QUEUED', error:'Worker interrupted before submit; safely re-queued'};
+      }
+      if (i.status === 'SUBMITTING') {
+        return {...i, status:'UNKNOWN', error:'Worker interrupted during submit; not retried automatically'};
+      }
+      if (stopping && i.status === 'QUEUED') {
+        return {...i, status:'CANCELLED', error:'Cancelled by stop request'};
+      }
+      return i;
+    });
+    job.status = stopping ? 'CANCELLED' : (job.items.some(i => i.status === 'QUEUED') ? 'RUNNING' : 'COMPLETED');
     job.tabId = null;
     return job;
   }
