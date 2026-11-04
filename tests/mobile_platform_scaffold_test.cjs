@@ -17,14 +17,28 @@ test('Android scaffold embeds GeckoView and targets Java 17',()=>{
   assert.match(manifest,/android\.permission\.INTERNET/);
 });
 
-test('iOS scaffold is Safari Web Extension source, not native Facebook injection',()=>{
+test('iOS scaffold uses a Safari-compatible MV3 service worker',()=>{
   const manifest=JSON.parse(read('mobile/ios/SafariExtension/manifest.json'));
   const content=read('mobile/ios/SafariExtension/content.js');
+  const bridge=read('mobile/ios/SafariExtension/workspace.js');
   const guide=read('mobile/ios/README.md');
   assert.equal(manifest.manifest_version,3);
+  assert.equal(manifest.background.service_worker,'background.js');
   assert.ok(manifest.content_scripts[0].matches.includes('https://www.facebook.com/*'));
+  assert.ok(manifest.content_scripts[1].matches.includes('https://workspace.rainy.studio/mobile/*'));
   assert.match(content,/__RAINY_FB_MOBILE__/);
+  assert.match(bridge,/RAINY_MOBILE_STAGE/);
   assert.match(guide,/cannot operate inside the native Facebook app/i);
+});
+
+test('mobile workspace layout fits narrow iPhone viewports',()=>{
+  const css=read('public/mobile/style.css');
+  const html=read('public/mobile/index.html');
+  assert.match(html,/width=device-width/);
+  assert.match(css,/100dvh/);
+  assert.match(css,/min-width: 0/);
+  assert.match(css,/@media \(max-width: 360px\)/);
+  assert.match(css,/env\(safe-area-inset-bottom\)/);
 });
 
 test('mobile docs do not misrepresent scaffolds as released apps',()=>{
