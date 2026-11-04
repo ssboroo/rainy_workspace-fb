@@ -1,0 +1,34 @@
+name: Mobile platform scaffold checks
+on:
+  pull_request:
+    paths:
+      - 'mobile/**'
+      - 'tests/mobile_platform_scaffold_test.cjs'
+      - '.github/workflows/mobile-platform-checks.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'mobile/**'
+      - 'tests/mobile_platform_scaffold_test.cjs'
+      - '.github/workflows/mobile-platform-checks.yml'
+jobs:
+  source-contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --test tests/mobile_platform_scaffold_test.cjs
+  android-debug-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+      - run: gradle -p mobile/android assembleDebug
