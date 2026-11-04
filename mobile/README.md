@@ -18,7 +18,7 @@ cd mobile/android
 gradle assembleDebug
 ```
 
-GeckoView is pinned to stable release `161.0.20261103075946`. Mozilla's quick start requires Java 17, the Mozilla Maven repository, and a GeckoView runtime/session/view lifecycle. See [Mozilla GeckoView quick start](https://mozilla.github.io/geckoview/consumer/docs/geckoview-quick-start).
+GeckoView is pinned to stable release `159.0.20261022150525`. Mozilla's quick start requires Java 17, the Mozilla Maven repository, and a GeckoView runtime/session/view lifecycle. See [Mozilla GeckoView quick start](https://mozilla.github.io/geckoview/consumer/docs/geckoview-quick-start).
 
 ## iPhone build
 
