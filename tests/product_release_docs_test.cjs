@@ -29,3 +29,11 @@ test('manual installation instructions explain ZIP extraction and update limitat
   assert(downloadPage.includes('chrome://extensions'));
   assert(downloadPage.includes('автомат шинэчлэлтийг авахгүй'));
 });
+
+
+test('README release metadata and package builder stay aligned with the manifest',()=>{
+  const builder=fs.readFileSync(path.join(root,'scripts/build-webstore.mjs'),'utf8');
+  assert.equal(readme.split('\n')[0],`# RAINY FB Pro ${manifest.version}`);
+  assert(!readme.includes('5.6.8'),'README must not retain stale 5.6.8 release instructions');
+  assert(!builder.includes("manifest.version!=='5.7.0'"),'package builder must accept the manifest version instead of a hard-coded release');
+});
