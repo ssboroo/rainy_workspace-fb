@@ -16,3 +16,56 @@ html.sidepanel body{grid-template-rows:48px auto auto minmax(0,1fr) auto 18px}ht
 body{grid-template-rows:48px 42px 44px minmax(0,1fr) 54px 18px}nav{padding:4px 9px;gap:4px;align-items:stretch}nav button{display:flex;align-items:center;justify-content:center;gap:5px;padding:7px 5px;font-size:10px;border:1px solid transparent;border-radius:8px;transition:background .18s,color .18s,box-shadow .18s}nav button svg{width:16px;height:16px;flex:none}nav button:hover{background:#e8f2ff;color:#1665cd;filter:none}nav button.active{color:#fff;background:linear-gradient(135deg,#3288ff,#1264df);border-color:#2879ec;box-shadow:0 3px 9px #1670ed26}nav button.active svg{stroke-width:2}html[data-theme="dark"] nav button.active{color:#dff0ff;background:linear-gradient(135deg,#1b5083,#183655);border-color:#347eb8;box-shadow:0 3px 9px #0002}html[data-theme="dark"] nav button:hover{background:#18304b;color:#b9e3ff}html.sidepanel nav{gap:4px;padding:6px 8px}html.sidepanel nav button{flex:1 0 29%;padding:10px 4px;font-size:10px;min-height:40px}html.sidepanel nav button svg{width:17px;height:17px}html.sidepanel nav button[data-view="protection"]{font-size:9px}
 /* 5.4: clear license selection and quieter example cards. */
 .billing-intro{margin:0;color:var(--muted);font-size:10px;padding:7px 0}.plans{display:flex;flex-direction:column;gap:7px;margin-top:0}.plan{display:grid;grid-template-columns:85px 1fr auto;align-items:center;gap:12px;min-height:64px;padding:13px 17px;border-radius:10px}.plan span{margin:0;font-size:12px;color:var(--muted)}.plan strong{font-size:23px;color:#2265f5}.plan em{margin:0;font-size:10px;color:#2265f5}.plan.featured b{display:none}.plan.featured{box-shadow:inset 3px 0 #2265f5}html[data-theme="dark"] .plan strong,html[data-theme="dark"] .plan em{color:#83caff}html.sidepanel .plan{grid-template-columns:68px 1fr;gap:7px;min-height:70px}html.sidepanel .plan em{grid-column:2;font-size:9px}html.sidepanel .plan strong{font-size:22px}.example-card{border-radius:12px;padding:16px}.example-card strong{display:block;font-size:13px}.example-card small{font-size:10px;line-height:1.6}.example-card:hover{border-color:#6d9fff;box-shadow:0 6px 16px #2265f512}.row:has(#stripMetadata){flex-wrap:wrap}html.sidepanel nav button{min-height:35px;padding:7px 4px}#billing.active{overflow-y:auto}.plans{flex-shrink:0}html.sidepanel .billing-intro{font-size:9px;line-height:1.8}#compose .hint{display:block;font-size:8px}
+
+/* RAINY FB Pro 5.7.0 — responsive light workspace refresh */
+:root{color-scheme:light;--bg:#f3f6fb;--card:#fff;--input:#f7f9fc;--line:#e1e8f2;--ink:#17243a;--muted:#718096;--blue:#1769e0;--cyan:#0b8fbd}
+html{width:780px;height:590px;overflow:hidden;color-scheme:light}
+body{background:var(--bg);color:var(--ink);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}
+header{background:#fff;border-bottom:1px solid var(--line)}
+.brand strong{color:#15243b}.brand small{color:#8290a5}
+.brand strong span{border-color:#c9ddfb;color:#1769e0}
+.health{background:#eef8f4;border-color:#d7eee4;color:#18734f}
+.health #licenseBadge,.health .license-deadline{color:#176447}
+.health .countdown{color:#18734f}
+.health.expired{background:#fff1f2;border-color:#ffd6dc;color:#a52a43}
+nav{background:#fff;border-color:var(--line);gap:4px}
+nav button{color:#6e7d93;border-radius:9px 9px 0 0}
+nav button.active{background:#edf4ff;color:#155ecb;border-color:#2877ec}
+main{background:var(--bg)}
+.card{background:#fff;border:1px solid var(--line);border-radius:13px;box-shadow:0 3px 12px #19365c0b}
+h2{color:#1d2c43}
+label{color:#53647d}
+input,select,textarea{background:#f8fafd;color:#1d2c43;border:1px solid #dce5f0;border-radius:8px}
+input::placeholder,textarea::placeholder{color:#98a5b6}
+.primary{background:linear-gradient(120deg,#2478ed,#125acb);border:1px solid #1764d3;color:#fff;border-radius:9px;box-shadow:0 3px 8px #1769e022}
+.secondary{background:#f0f5fc;color:#28527f;border:1px solid #d8e4f2;border-radius:8px}
+.danger{background:#fff0f2;border-color:#ffd4dc;color:#b12c48;border-radius:8px}
+.text-button{color:#1769d2}
+.upload{background:#f0f7ff;border-color:#c8dcf6;color:#1c69c6;border-radius:8px}
+.pill{background:#f0f5fc;border-color:#dbe6f3;color:#45617f}
+.runbar{background:#fff;border-color:var(--line);box-shadow:0 -3px 14px #19365c08}
+.notice{background:#f4f8fd;border:1px solid #e0e9f4;border-radius:9px;color:#52657e;padding:10px}
+.result,.lead{background:#f9fbfe;border:1px solid #e4ebf4;border-radius:9px}
+button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid #2b7ce8;outline-offset:2px}
+@media (min-width:781px){
+ html,body{width:100%;height:100%;min-width:360px;min-height:520px}
+ body{grid-template-rows:58px auto auto minmax(0,1fr) 64px 18px}
+ header{padding:10px 18px}
+ .brand img{width:36px;height:36px}
+ nav{padding:5px 12px;flex-wrap:wrap;justify-content:flex-start}
+ nav button{flex:0 0 auto;min-width:86px;padding:10px 12px}
+ main{padding:14px;overflow:auto}
+ .view{height:auto;min-height:100%;overflow:visible}
+ .view.active{overflow:visible}
+ .two-column.active{grid-template-columns:minmax(0,1.1fr) minmax(320px,.9fr);gap:14px}
+ .card{padding:16px}
+ #description{min-height:150px}
+ #groups{min-height:150px}
+}
+@media (max-width:520px){
+ html,body{width:100%;min-width:320px}
+ nav{overflow-x:auto}
+ nav button{min-width:68px}
+ .two-column.active{grid-template-columns:1fr;overflow:auto}
+ .card{min-height:260px}
+}
