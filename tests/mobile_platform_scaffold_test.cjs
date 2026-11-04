@@ -40,7 +40,7 @@ test('mobile workspace layout fits narrow iPhone viewports',()=>{
   const html=read('public/mobile/index.html');
   assert.match(html,/width=device-width/);
   assert.match(css,/100dvh/);
-  assert.match(css,/min-width: 0/);
+  assert.match(css,/min-width:0/);
   assert.match(css,/height:auto!important/);
   assert.match(css,/overflow-y:auto!important/);
   assert.match(css,/.actions\{display:grid!important/);
