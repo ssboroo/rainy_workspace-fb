@@ -46,6 +46,8 @@ jobs:
           VERSION=$(node -p "require('./extension/manifest.json').version")
           mkdir -p public/downloads
           cp "dist/rainy-fb-pro-${VERSION}-webstore.zip" "public/downloads/rainy-fb-pro-${VERSION}.zip"
+          mkdir -p downloads
+          cp "dist/rainy-fb-pro-${VERSION}-webstore.zip" "downloads/rainy-fb-pro-${VERSION}.zip"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add "public/downloads/rainy-fb-pro-${VERSION}.zip"
