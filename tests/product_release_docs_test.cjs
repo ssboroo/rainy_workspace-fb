@@ -29,3 +29,9 @@ test('manual installation instructions explain ZIP extraction and update limitat
   assert(downloadPage.includes('chrome://extensions'));
   assert(downloadPage.includes('автомат шинэчлэлтийг авахгүй'));
 });
+
+test('release documentation matches the manifest version',()=>{
+  assert(readme.startsWith(`# RAINY FB Pro ${manifest.version}`));
+  assert(downloadPage.includes(`rainy-fb-pro-${manifest.version}.zip`));
+  assert(downloadPage.includes(`RAINY FB Pro ${manifest.version}`));
+});
