@@ -47,21 +47,6 @@ public final class MainActivity extends Activity {
         super.onPause();
     }
 
-    @Override public void onBackPressed() {
-        if (session != null && session.getNavigationDelegate() != null) {
-            session.getNavigationDelegate().onCanGoBack(session, canGoBack -> {
-                if (canGoBack) session.goBack();
-                else superOnBackPressed();
-            });
-        } else {
-            super.onBackPressed();
-        }
-    }
-
-    private void superOnBackPressed() {
-        runOnUiThread(() -> MainActivity.super.onBackPressed());
-    }
-
     @Override protected void onDestroy() {
         if (geckoView != null) geckoView.releaseSession();
         if (session != null) session.close();
