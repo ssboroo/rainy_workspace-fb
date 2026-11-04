@@ -1,33 +1,42 @@
-# RAINY Workspace — Facebook Pro 5.2
+# RAINY Workspace — Facebook Pro
 
-Монгол интерфэйстэй Chrome өргөтгөл, танилцуулга болон татах хуудас.
+Монгол интерфэйстэй Chrome өргөтгөл: Facebook группийн нийтлэлийн дараалал, хуваарь, зарын мэдээлэл цуглуулах, явцын тайлан болон лицензийн удирдлага.
 
-## Веб хуудас
+## Албан ёсны веб
 
-https://rainy-fb-workspace.fun-wasp-4344.chatgpt.site
+https://workspace.rainy.studio/
 
-## Шууд татах
+## Татах
 
-[RAINY FB Pro 5.2 ZIP](downloads/rainy-fb-pro-5.2.zip)
+[RAINY FB Pro 5.8.0 ZIP](downloads/rainy-fb-pro-5.8.0.zip)
 
-ZIP-ийг бүрэн задлаад Chrome → `chrome://extensions` → Developer mode → Load unpacked → manifest.json байгаа хавтсыг сонгоно. Өргөтгөлөө Pin хийгээд RAINY дүрсийг дарна. Шинэчлэсний дараа Facebook tab-аа refresh хийнэ.
+Шинэ хувилбар гарах бүрд GitHub Actions ZIP-ийг `downloads/` болон `public/downloads/` хавтсанд үүсгэнэ. Веб сайтын татах товч нь static root дахь `downloads/` замыг ашиглана.
 
-## Бүтэц
+## Суулгах — Windows / Chrome
 
-- `extension/`: хэрэглэгчид тараах Chrome өргөтгөл, үйлчилгээний хаяг урьдчилан тохируулсан.
-- `index.html`, `style.css`, `app.js`: responsive танилцуулга, интерактив demo, 4 алхамт заавар, FAQ.
-- `downloads/`: зөвхөн хэрэглэгчийн файлуудтай ZIP.
-- `server/`: Wire.mn төлбөр, төхөөрөмжийн trial/лиценз, Telegram удирдлагын сервер.
-- `owner/`: эзэмшигчийн build/signing хэрэгсэл. Private key-г хэрэглэгчид тараахгүй.
+1. ZIP файлыг татаж авна.
+2. ZIP дээр Right click → **Extract All…** гэж бүрэн задлана.
+3. Chrome дээр `chrome://extensions` нээнэ.
+4. **Developer mode**-ийг асаана.
+5. **Load unpacked** дарж, задалсан хавтас доторх `manifest.json` байгаа `extension` хавтсыг сонгоно. Chrome Web Store ZIP бол manifest root-д байна.
+6. RAINY FB Pro-г Pin хийгээд нээнэ.
+7. Facebook tab-аа refresh хийнэ.
 
-## Эрх
+## Техникийн шаардлага
 
-3 хоногийн trial. 30 хоног 49,900₮, 90 хоног 99,000₮, 365 хоног 299,000₮. Эрхийн дуусах он, сар, өдөр, цаг болон countdown байнга харагдана.
+- Google Chrome 120+
+- Facebook-д нэвтэрсэн байх
+- Chrome болон компьютер ажиллаж, интернет холбогдсон байх (хуваарьт ажлын үед)
+- Лицензийн сервер: Railway дээрх RAINY license service
 
-## Холболт
+## Лиценз ба төлбөр
 
-Төлбөрийн сервер Railway дээр байрласан. Wire API key зөвхөн серверийн environment variables-д байна. Хэрэглэгч серверийн хаяг/API key оруулахгүй. Төлбөр серверээр шалгагдаж, Telegram админ идэвхжүүлнэ. Webhook-гүй үед сервер хүлээгдсэн төлбөрийг 30 секунд тутам шалгана.
+Trial: 24 цаг. Багцууд: 30 хоног 49,900₮ · 90 хоног 99,000₮ · 365 хоног 299,000₮. Төлбөрийн төлөв болон идэвхжүүлэлтийг өргөтгөлийн **Лиценз** хэсгээс шалгана.
+
+## Хязгаарлалт
+
+Facebook-ийн интерфэйс, эрх, checkpoint болон хязгаарлалтаас шалтгаалан зарим үйлдэл ажиллахгүй байж болно. Бүх нийтлэл амжилттай нийтлэгдэнэ, эсвэл Facebook-ийн хязгаарлалтаас бүрэн хамгаална гэж батлахгүй. Баталгаажаагүй нийтлэлийг “Нийтлэгдсэн” гэж тооцохгүй.
 
 Тусламж: https://t.me/boroobro
 
-Бодит Chromium UI/DOM болон автомат тестүүдээр шалгасан. Хэрэглэгчийн бодит Facebook account дээр пост илгээгээгүй. Facebook интерфэйс, эрх, checkpoint болон хязгаарлалтаас хамаарна; block болохгүй эсвэл бүх постыг 100% танина гэсэн баталгаа байхгүй.
+Facebook / Meta-ийн албан ёсны бүтээгдэхүүн биш.
