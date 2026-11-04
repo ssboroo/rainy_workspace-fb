@@ -1,4 +1,4 @@
-const DB='rainy-mobile-v1',STORE='records';let db,posts=[],groups=[],templates=[],imageData='',installPrompt=null;
+const features=['posts','groups','schedule','templates','export'];\nconst DB='rainy-mobile-v1',STORE='records';let db,posts=[],groups=[],templates=[],imageData='',installPrompt=null;
 const $=id=>document.getElementById(id);const uid=()=>crypto.randomUUID?crypto.randomUUID():String(Date.now())+Math.random().toString(16).slice(2);
 function openDB(){return new Promise((resolve,reject)=>{const req=indexedDB.open(DB,1);req.onupgradeneeded=()=>req.result.createObjectStore(STORE,{keyPath:'key'});req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
 function read(key){return new Promise((resolve,reject)=>{const r=db.transaction(STORE).objectStore(STORE).get(key);r.onsuccess=()=>resolve(r.result?.value??[]);r.onerror=()=>reject(r.error)})}
