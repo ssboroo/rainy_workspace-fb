@@ -3,7 +3,7 @@
 (() => {
   if(window.__RAINY_FB_SUITE_LOADED__)return;
   window.__RAINY_FB_SUITE_LOADED__=true;
-  window.__RAINY_FB_SUITE_VERSION__='5.4.0';
+  window.__RAINY_FB_SUITE_VERSION__='5.7.0';
 
   let taskAborted = false;
   function checkAbort(){ if(taskAborted)throw new Error('QUEUE_ABORTED'); }
@@ -201,7 +201,12 @@
 
     if (!triggerBtn) {
       const membership=await ensureGroupJoinedOrSkip();
-      return {skipped:true,reason:membership.status==='PENDING'?'PENDING_APPROVAL':membership.status==='NOT_JOINED'?'NOT_A_MEMBER':'NO_WRITE_PERMISSION'};
+      if(membership.status==='PENDING')return {skipped:true,reason:'PENDING_APPROVAL'};
+      if(membership.status==='NOT_JOINED')return {skipped:true,reason:'NOT_A_MEMBER'};
+      // A joined group with no recognized composer is ambiguous: Facebook may have
+      // changed its UI or removed write access. Stop the queue for human inspection.
+      logToExtension('Facebook-ийн нийтлэл бичих интерфэйс танигдсангүй. Автомат ажлыг зогсоож, группийг гараар шалгана уу.','error');
+      return {skipped:true,reason:'FACEBOOK_UI_CHANGED'};
     }
 
     logToExtension('Пост бичих цонхыг нээж байна...', 'info');
@@ -960,7 +965,7 @@
     if (!message || typeof message.action !== 'string') return false;
 
     if (message.action === 'PING_CONTENT_SCRIPT') {
-      sendResponse({ ready: true, host: 'facebook.com', version: '5.6.7' });
+      sendResponse({ ready: true, host: 'facebook.com', version: '5.7.0' });
       return false;
     }
 

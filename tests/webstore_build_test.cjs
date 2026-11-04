@@ -15,7 +15,7 @@ test('Web Store build is a clean extension-root package with first-upload key re
     assert(fs.existsSync(manifestPath),'manifest.json must be at ZIP root');
     const manifest=JSON.parse(fs.readFileSync(manifestPath,'utf8'));
     assert.equal(manifest.manifest_version,3);
-    assert.equal(manifest.version,'5.6.8');
+    assert.equal(manifest.version,'5.7.0');
     assert.equal(Object.hasOwn(manifest,'key'),false);
     assert(fs.existsSync(path.join(out,manifest.background.service_worker)));
     assert(fs.existsSync(path.join(out,'popup.html')));

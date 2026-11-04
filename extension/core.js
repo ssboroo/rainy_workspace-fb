@@ -36,6 +36,11 @@
     if (['SUBMITTING','UNKNOWN','PENDING_APPROVAL'].includes(record.status)) return true;
     return record.status==='PUBLISHED' && now - Number(record.at || 0) < (Number(windowMinutes) || 0) * 60000;
   }
+  function staleAttempt(item, now=Date.now(), timeoutMs=180000) {
+    if (!item || !['PREPARING','SUBMITTING'].includes(item.status)) return false;
+    const anchor = Number(item.status==='SUBMITTING' ? item.submittedAt : item.startedAt);
+    return !Number.isFinite(anchor) || now-anchor >= timeoutMs;
+  }
   function recover(job) {
     if (!job || !['RUNNING','STOPPING'].includes(job.status)) return job;
     const stopping = job.status === 'STOPPING';
@@ -57,7 +62,7 @@
     job.tabId = null;
     return job;
   }
-  const api = {INTERVALS,groupUrl,activeHours,blocked,recover};
+  const api = {INTERVALS,groupUrl,activeHours,blocked,staleAttempt,recover};
   root.RainyCore = api;
   if (typeof module !== 'undefined') module.exports = api;
 })(globalThis);

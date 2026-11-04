@@ -117,7 +117,7 @@ async function activateKey(token){
   await chrome.storage.local.set({entitlement:r});return r;
 }
 function today(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Ulaanbaatar',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());}
-function isRestriction(error){return /FB_RESTRICTION|FACEBOOK_LOGIN_OR_CHECKPOINT|ACTION_BLOCKED/.test(error||'');}
+function isRestriction(error){return /FB_RESTRICTION|FACEBOOK_LOGIN_OR_CHECKPOINT|ACTION_BLOCKED|FACEBOOK_UI_CHANGED/.test(error||'');}
 async function pauseQueue(reason){return atomic(async()=>{const {job}=await chrome.storage.local.get('job');if(job?.status==='RUNNING'){job.status='PAUSED';job.pauseReason=reason;await chrome.storage.local.set({job,queueStatus:'IDLE'});}isQueueRunning=false;clearTimeout(queueWakeTimer);await chrome.alarms.clear(TICK);});}
 async function scheduleTick(when=Date.now()+1000){
   clearTimeout(queueWakeTimer);
@@ -223,7 +223,7 @@ async function pump(){
     job=await atomic(async()=>{const s=(await chrome.storage.local.get('job')).job;if(s?.id!==job.id||s.status!=='RUNNING')throw new Error('QUEUE_ABORTED');s.tabId=tab.id;await chrome.storage.local.set({job:s});return s;});
     let receiptTimer;const receiptDone=new Promise(resolve=>{receiptTimer=setInterval(async()=>{try{const current=(await chrome.storage.local.get('job')).job;const row=current?.id===job.id?current.items[index]:null;if(row&&row.attemptId===job.items[index].attemptId&&['PUBLISHED','PENDING_APPROVAL','UNKNOWN','CANCELLED'].includes(row.status))resolve({ok:true,...row});}catch{}},500);});
     let result;try{result=await Promise.race([receiptDone,executeTaskOnTab(tab.id,'EXECUTE_FB_GROUP_POST',{jobId:job.id,index,total:job.items.length,attemptId:job.items[index].attemptId,formData:buildCleanGroupPostData(job.form),images:jobImages},120000)]);}finally{clearInterval(receiptTimer);}
-    if(isRestriction(result.error))await pauseQueue('Facebook хязгаарлалт/checkpoint илэрлээ. Facebook дээр асуудлаа шийдээд үргэлжлүүлнэ үү.');
+    if(isRestriction(result.error)||result.reason==='FACEBOOK_UI_CHANGED')await pauseQueue('Facebook-ийн UI танигдсангүй эсвэл хязгаарлалт илэрлээ. Гараар шалгаж, асуудал шийдэгдсэний дараа үргэлжлүүлнэ үү.');
     const latest=(await chrome.storage.local.get('job')).job;
     if(latest?.id===job.id&&['PREPARING','SUBMITTING'].includes(latest.items[index].status)){
       const fallbackStatus=latest.items[index].status==='SUBMITTING'?'UNKNOWN':(result.skipped?'SKIPPED':(result.error==='QUEUE_ABORTED'||shouldAbortQueue?'CANCELLED':'FAILED'));
@@ -345,7 +345,14 @@ chrome.runtime.onStartup.addListener(()=>{void ready;});
 chrome.alarms.onAlarm.addListener(alarm=>{void ready.then(async()=>{
   if(alarm.name===TICK)return pump();
   if(alarm.name===RECOVERY){
-    if(!pumping){const {job}=await chrome.storage.local.get('job');if(job?.status==='RUNNING')return pump();}return;
+    if(pumping)return;
+    const {job}=await chrome.storage.local.get('job');
+    if(job?.status==='RUNNING'){
+      const stale=job.items?.some(item=>RainyCore.staleAttempt(item));
+      if(stale){await broadcastLog('MV3 worker тасалдсан байж болзошгүй. Илгээхээс өмнөх ажлыг сэргээж, илгээж эхэлсэн ажлыг давхардуулахгүйн тулд UNKNOWN болгоно.','warn');return recoverQueue();}
+      return pump();
+    }
+    return;
   }
   if(alarm.name!==SCHEDULE)return;
   const {scheduleConfig:c,savedFormData:f,job}=await chrome.storage.local.get(['scheduleConfig','savedFormData','job']);

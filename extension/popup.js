@@ -1,5 +1,5 @@
 const $=id=>document.getElementById(id);let interval=60,currentOrder=null,toastTimer;
-const labels={QUEUED:'Хүлээж байна',PREPARING:'Бэлтгэж байна',SUBMITTING:'Илгээж байна',PUBLISHED:'Нийтлэгдсэн',PENDING_APPROVAL:'Админы хяналт',UNKNOWN:'Нийтлэгдсэн',FAILED:'Алдаа',SKIPPED:'Алгассан',CANCELLED:'Зогсоосон',DUPLICATE_BLOCKED:'Давхардлыг хаасан',COMPLETED:'Дууссан',RUNNING:'Ажиллаж байна',PAUSED:'Түр зогссон'};
+const labels={QUEUED:'Хүлээж байна',PREPARING:'Бэлтгэж байна',SUBMITTING:'Илгээж байна',PUBLISHED:'Нийтлэгдсэн',PENDING_APPROVAL:'Админы хяналт',UNKNOWN:'Баталгаажаагүй',FAILED:'Алдаа',SKIPPED:'Алгассан',CANCELLED:'Зогсоосон',DUPLICATE_BLOCKED:'Давхардлыг хаасан',COMPLETED:'Дууссан',RUNNING:'Ажиллаж байна',PAUSED:'Түр зогссон'};
 function toast(s,error=false){$('toast').textContent=s;$('toast').className=error?'error':'';$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,7000);}
 async function send(action,data={}){const r=await chrome.runtime.sendMessage({action,...data});if(!r||r.ok===false)throw new Error(r?.error||'Хариу ирсэнгүй');return r;}
 function bind(id,fn){$(id).addEventListener('click',async e=>{const b=e.currentTarget;b.disabled=true;try{await fn(e);}catch(err){toast(err.message,true);}finally{b.disabled=false;}});}
