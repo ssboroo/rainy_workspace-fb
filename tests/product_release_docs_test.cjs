@@ -33,7 +33,7 @@ test('manual installation instructions explain ZIP extraction and update limitat
 
 test('README release metadata and package builder stay aligned with the manifest',()=>{
   const builder=fs.readFileSync(path.join(root,'scripts/build-webstore.mjs'),'utf8');
-  assert.match(readme,new RegExp('^# RAINY FB Pro '+manifest.version.replace(/\\./g,'\\\\.')+'(?:\\s|$)','m'));
-  assert(!/5\\.6\\.8/.test(readme),'README must not retain stale 5.6.8 release instructions');
-  assert(!/manifest\\.version!==['"]5\\.7\\.0['"]/.test(builder),'package builder must accept the manifest version instead of a hard-coded release');
+  assert.equal(readme.split('\n')[0],`# RAINY FB Pro ${manifest.version}`);
+  assert(!readme.includes('5.6.8'),'README must not retain stale 5.6.8 release instructions');
+  assert(!builder.includes("manifest.version!=='5.7.0'"),'package builder must accept the manifest version instead of a hard-coded release');
 });
