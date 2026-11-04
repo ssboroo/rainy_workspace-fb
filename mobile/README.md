@@ -11,14 +11,14 @@ Shared Android + iPhone development workspace for the desktop extension baseline
 
 ## Android build
 
-Requires JDK 17, Android SDK 36, and Gradle 8.13+.
+Requires JDK 17, Android SDK 37, Android Gradle Plugin 9.1.1, and Gradle 9.3.1+.
 
 ```bash
 cd mobile/android
 gradle assembleDebug
 ```
 
-GeckoView is pinned to stable release `159.0.20261022150525`. Mozilla's quick start requires Java 17, the Mozilla Maven repository, and a GeckoView runtime/session/view lifecycle. See [Mozilla GeckoView quick start](https://mozilla.github.io/geckoview/consumer/docs/geckoview-quick-start).
+GeckoView is pinned to published stable release `159.0.20261022150525`. Mozilla's quick start requires Java 17, the Mozilla Maven repository, and a GeckoView runtime/session/view lifecycle. See [Mozilla GeckoView quick start](https://mozilla.github.io/geckoview/consumer/docs/geckoview-quick-start).
 
 ## iPhone build
 
