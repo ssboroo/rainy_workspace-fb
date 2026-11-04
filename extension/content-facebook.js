@@ -3,7 +3,7 @@
 (() => {
   if(window.__RAINY_FB_SUITE_LOADED__)return;
   window.__RAINY_FB_SUITE_LOADED__=true;
-  window.__RAINY_FB_SUITE_VERSION__='5.6.8';
+  window.__RAINY_FB_SUITE_VERSION__='5.7.0';
 
   let taskAborted = false;
   function checkAbort(){ if(taskAborted)throw new Error('QUEUE_ABORTED'); }
