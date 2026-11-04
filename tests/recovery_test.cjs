@@ -21,7 +21,7 @@ test('worker restart records an in-flight submit as unknown and continues only r
   ]};
   const recovered=core.recover(job);
   assert.equal(recovered.items[0].status,'UNKNOWN');
-  assert.match(recovered.items[0].error,/not retry/i);
+  assert.match(recovered.items[0].error,/not retried/i);
   assert.equal(recovered.items[1].status,'QUEUED');
   assert.equal(recovered.status,'RUNNING');
   assert.equal(recovered.tabId,null);
