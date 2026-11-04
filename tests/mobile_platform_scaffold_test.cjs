@@ -11,7 +11,9 @@ test('Android scaffold embeds GeckoView and targets Java 17',()=>{
   assert.match(gradle,/org\.mozilla\.geckoview:geckoview-stable/);
   assert.match(gradle,/VERSION_17/);
   assert.match(activity,/GeckoRuntime\.create/);
-  assert.match(activity,/https:\/\/m\.facebook\.com/);
+  assert.match(activity,/https:\/\/workspace\.rainy\.studio\/mobile\//);
+  assert.match(activity,/ensureBuiltIn/);
+  assert.match(gradle,/extension\/content-facebook\.js/);
   assert.match(manifest,/android\.permission\.INTERNET/);
 });
 
@@ -27,6 +29,63 @@ test('iOS scaffold is Safari Web Extension source, not native Facebook injection
 
 test('mobile docs do not misrepresent scaffolds as released apps',()=>{
   const docs=read('mobile/README.md');
-  assert.match(docs,/does not yet inject the 5\.8\.0 extension/);
+  assert.match(docs,/awaiting physical-device validation/);
   assert.match(docs,/No APK, AAB, IPA/);
+});
+
+test('mobile posting binds the payload to the group and grants a single submit permit',async()=>{
+  const vm=require('node:vm');
+  const records={};
+  const id='12345678-1234-1234-1234-123456789012';
+  const workspace={url:'https://workspace.rainy.studio/mobile/',frameId:0,tab:{id:10}};
+  const facebook={url:'https://www.facebook.com/groups/test/',frameId:0,tab:{id:10}};
+  let currentPage=facebook;
+  let listener,submissions=0,nextId=0,resultStatus='UNKNOWN';
+  const send=(message,sender)=>new Promise(resolve=>listener(message,sender,resolve));
+  const browser={
+    runtime:{onMessage:{addListener:callback=>{listener=callback;}}},
+    storage:{local:{
+      get:async key=>key===null?{...records}:{[key]:records[key]},
+      set:async values=>Object.assign(records,values),
+      remove:async key=>{delete records[key];}
+    }},
+    tabs:{sendMessage:async (tab,message)=>{
+      assert.equal(tab,10);
+      assert.equal(message.payload.formData.description,'Sample');
+      const {jobId,attemptId,index}=message.payload;
+      const permit={action:'POST_SUBMIT_PERMIT',jobId,attemptId,index};
+      const attempts=await Promise.all([send(permit,currentPage),send(permit,currentPage)]);
+      assert.equal(attempts.filter(result=>result.ok).length,1);
+      submissions++;
+      return {status:resultStatus};
+    }}
+  };
+  vm.runInNewContext(read('mobile/ios/SafariExtension/background.js'),{
+    browser,URL,crypto:{randomUUID:()=>String(Number(id.slice(0,8))+nextId++)+id.slice(8)}
+  });
+  const stage={action:'RAINY_MOBILE_STAGE',url:facebook.url,text:'Sample',image:''};
+  assert.equal((await send(stage,{...workspace,url:'https://other.test/mobile/'})).ok,false);
+  assert.equal((await send(stage,workspace)).url,facebook.url+'#rainy-mobile='+id);
+  const run={action:'RAINY_MOBILE_RUN',jobId:id};
+  assert.equal((await send(run,{...facebook,tab:{id:11}})).ok,false);
+  assert.equal((await send(run,{...facebook,url:'https://www.facebook.com/groups/other/'})).ok,false);
+  assert.equal((await send(run,facebook)).result.status,'UNKNOWN');
+  assert.equal((await send(run,facebook)).ok,false);
+  assert.equal(submissions,1);
+
+  const scheduled={...stage,urls:[facebook.url,'https://m.facebook.com/groups/next/'],scheduleId:'post:date'};
+  const staged=await send(scheduled,workspace);
+  assert.equal((await send(scheduled,workspace)).duplicate,true);
+  const firstJobId=new URL(staged.url).hash.slice('#rainy-mobile='.length,-':auto'.length);
+  assert.equal((await send({...run,jobId:firstJobId},facebook)).ok,false);
+  resultStatus='PUBLISHED';
+  const first=await send({...run,jobId:firstJobId,automatic:true},facebook);
+  assert.match(first.next,/^https:\/\/www\.facebook\.com\/groups\/next\/#rainy-mobile=.*:auto$/);
+  const nextJobId=new URL(first.next).hash.slice('#rainy-mobile='.length,-':auto'.length);
+  resultStatus='UNKNOWN';
+  currentPage={...facebook,url:first.next};
+  const next=await send({...run,jobId:nextJobId,automatic:true},{...facebook,url:first.next});
+  assert.equal(next.result.status,'UNKNOWN');
+  assert.equal(next.next,undefined);
+  assert.equal(submissions,3);
 });
