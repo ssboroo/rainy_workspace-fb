@@ -41,7 +41,11 @@ test('mobile workspace layout fits narrow iPhone viewports',()=>{
   assert.match(html,/width=device-width/);
   assert.match(css,/100dvh/);
   assert.match(css,/min-width: 0/);
-  assert.match(css,/@media \(max-width: 360px\)/);
+  assert.match(css,/height:auto!important/);
+  assert.match(css,/overflow-y:auto!important/);
+  assert.match(css,/.actions\{display:grid!important/);
+  assert.match(css,/.item-actions\{display:grid!important/);
+  assert.match(css,/@media\(max-width:350px\)/);
   assert.match(css,/env\(safe-area-inset-bottom\)/);
 });
 
