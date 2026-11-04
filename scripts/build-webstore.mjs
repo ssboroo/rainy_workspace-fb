@@ -10,7 +10,7 @@ function inside(parent,child){
   const rel=path.relative(parent,child);
   return rel!==''&&!rel.startsWith('..')&&!path.isAbsolute(rel);
 }
-if(output===root||output===source||inside(source,output))throw new Error('Output cannot replace the repository or be written inside extension source.');
+if(output===root||output===source||inside(source,output)||inside(output,root))throw new Error('Output cannot replace the repository or be written inside extension source.');
 
 await fs.rm(output,{recursive:true,force:true});
 await fs.mkdir(output,{recursive:true});
@@ -57,7 +57,8 @@ for(const item of manifest.web_accessible_resources||[])referenced.push(...(item
 for(const item of manifest.options_ui?.page?[manifest.options_ui.page]:[])referenced.push(item);
 for(const item of manifest.options_page?[manifest.options_page]:[])referenced.push(item);
 for(const file of referenced){
-  const resolved=path.resolve(output,file);
+  const localFile=String(file).split(/[?#]/,1)[0];
+  const resolved=path.resolve(output,localFile);
   if(!inside(output,resolved))throw new Error('Manifest path escapes package root: '+file);
   await fs.access(resolved);
 }
