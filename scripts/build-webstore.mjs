@@ -39,7 +39,7 @@ const manifest=JSON.parse(await fs.readFile(manifestPath,'utf8'));
 if(manifest.manifest_version!==3)throw new Error('Chrome Web Store requires Manifest V3.');
 if(!manifest.name||!manifest.version||!manifest.description)throw new Error('Manifest requires name, version and description.');
 if(manifest.description.length>132)throw new Error('Manifest description exceeds 132 characters.');
-if(manifest.version!=='5.7.0')throw new Error('Unexpected release version: '+manifest.version);
+if(!/^\\d+\\.\\d+\\.\\d+$/.test(manifest.version))throw new Error('Manifest version must use MAJOR.MINOR.PATCH: '+manifest.version);
 
 // A new Chrome Web Store item gets its permanent ID from the Store. The source
 // manifest keeps its development key; only this first-upload artifact omits it.
