@@ -22,3 +22,18 @@ test('content script diagnostics report the current manifest version',()=>{
   assert(js.includes("__RAINY_FB_SUITE_VERSION__='"+manifest.version+"'"));
   assert(js.includes("version: '"+manifest.version+"'"));
 });
+
+test('5.7.0 popup and side panel use responsive light workspace styles',()=>{
+  const manifest=JSON.parse(fs.readFileSync(path.join(root,'extension/manifest.json'),'utf8'));
+  const css=fs.readFileSync(path.join(root,'extension/popup.css'),'utf8');
+  assert.equal(manifest.version,'5.7.0');
+  assert(css.includes('@media (min-width:781px)'));
+  assert(css.includes('color-scheme:light'));
+  assert(css.includes('grid-template-columns:minmax(0,1.1fr)'));
+});
+
+test('release workflow names the 5.7.0 web store and public packages',()=>{
+  const workflow=fs.readFileSync(path.join(root,'.github/workflows/webstore-package.yml'),'utf8');
+  assert(workflow.includes('rainy-fb-pro-5.7.0-webstore.zip'));
+  assert(workflow.includes('rainy-fb-pro-5.7.0.zip'));
+});
