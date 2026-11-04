@@ -57,6 +57,21 @@ test('website download links resolve to a ZIP copied into the static site root',
   assert(app.includes('downloads/rainy-fb-pro-'+version+'.zip'));
 });
 
+
+test('deployed public website and install guide show the manifest version',()=>{
+  const version=manifest().version;
+  const html=read('public/index.html');
+  assert(html.includes('RAINY WORKSPACE '+version));
+  assert(html.includes('RAINY PRO <b>'+version+'</b>'));
+  assert(html.includes('/downloads/rainy-fb-pro-'+version+'.zip'));
+  assert(!html.includes('5.6.8'));
+  const js=read('public/app.b4d2ba57d3ee.js');
+  assert(js.includes('rainy-fb-pro-'+version+'.zip'));
+  assert(!js.includes('5.6.8'));
+  const preview=read('public/preview/index.html');
+  assert(preview.includes('FB Pro · '+version));
+});
+
 test('README installation guide points to the current website and package',()=>{
   const docs=read('README.md');
   const version=manifest().version;
