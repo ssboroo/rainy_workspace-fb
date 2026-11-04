@@ -42,5 +42,5 @@ test('website homepage and download page advertise the manifest release',()=>{
   const homepage=fs.readFileSync(path.join(root,'index.html'),'utf8');
   assert(homepage.includes(`downloads/rainy-fb-pro-${manifest.version}.zip`));
   assert(downloadPage.includes(`/downloads/rainy-fb-pro-${manifest.version}.zip`));
-  assert(!/rainy-fb-pro-5\\.[0-7](?:\\.|\\.zip)/.test(homepage));
+  assert(!/rainy-fb-pro-5\.[0-7]\./.test(homepage));
 });
