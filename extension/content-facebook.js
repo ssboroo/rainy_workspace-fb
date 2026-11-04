@@ -965,7 +965,7 @@
     if (!message || typeof message.action !== 'string') return false;
 
     if (message.action === 'PING_CONTENT_SCRIPT') {
-      sendResponse({ ready: true, host: 'facebook.com', version: '5.6.8' });
+      sendResponse({ ready: true, host: 'facebook.com', version: '5.7.0' });
       return false;
     }
 
