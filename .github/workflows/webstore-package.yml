@@ -26,6 +26,8 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Run extension tests
         run: node --test tests/*.cjs
+      - name: Install Python test dependency
+        run: python -m pip install lxml
       - name: Run Python tests
         run: python -m unittest discover -s tests -p '*_test.py'
       - name: Build clean Chrome Web Store directory
