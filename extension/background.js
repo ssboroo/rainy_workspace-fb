@@ -304,12 +304,22 @@ async function configureSchedule(c){
 async function recoverQueue(){
   return atomic(async()=>{
     const {job,postLedger={}}=await chrome.storage.local.get(['job','postLedger']);
-    if(!job||!['RUNNING','STOPPING'].includes(job.status))return;
-    if(!job.items.some(i=>['PREPARING','SUBMITTING'].includes(i.status))){isQueueRunning=true;await scheduleTick(Math.max(Date.now()+1000,job.nextAt||0));return;}
-    const oldTab=job.tabId;RainyCore.recover(job);
-    for(const i of job.items.filter(i=>i.status==='UNKNOWN'))postLedger[i.key]={status:'UNKNOWN',at:Date.now(),jobId:job.id,url:i.url};
-    await chrome.storage.local.set({job,postLedger,queueStatus:'IDLE'});isQueueRunning=false;
+    if(!job||!['RUNNING','STOPPING'].includes(job.status)){
+      isQueueRunning=false;
+      await chrome.storage.local.set({queueStatus:'IDLE'});
+      return;
+    }
+    const oldTab=job.tabId;
+    RainyCore.recover(job);
+    for(const i of job.items.filter(i=>i.status==='UNKNOWN')){
+      postLedger[i.key]={status:'UNKNOWN',at:Date.now(),jobId:job.id,url:i.url};
+    }
+    const running=job.status==='RUNNING';
+    if(running)job.nextAt=Math.max(Number(job.nextAt)||0,Date.now()+1000);
+    isQueueRunning=running;
+    await chrome.storage.local.set({job,postLedger,queueStatus:running?'RUNNING':'IDLE'});
     if(oldTab)await safelyCloseTab(oldTab);
+    if(running)await scheduleTick(job.nextAt);
   });
 }
 const ready=(async()=>{
@@ -319,7 +329,6 @@ const ready=(async()=>{
   // Legacy credentials are never used. Preserve them until the owner migrates settings.
   // Existing license state must survive upgrades and every worker wake.
   await chrome.alarms.clear('RAINY_TG_POLL_ALARM').catch(()=>{});
-  await chrome.storage.local.set({queueStatus:'IDLE'});
   await chrome.storage.local.setAccessLevel({accessLevel:'TRUSTED_CONTEXTS'}).catch(()=>{});
   await recoverQueue();await chrome.alarms.create(RECOVERY,{periodInMinutes:1});
   const {scheduleConfig:c}=await chrome.storage.local.get('scheduleConfig');
