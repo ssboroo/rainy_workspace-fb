@@ -3,7 +3,7 @@
 (() => {
   if(window.__RAINY_FB_SUITE_LOADED__)return;
   window.__RAINY_FB_SUITE_LOADED__=true;
-  window.__RAINY_FB_SUITE_VERSION__='5.6.8';
+  window.__RAINY_FB_SUITE_VERSION__='5.7.0';
 
   let taskAborted = false;
   function checkAbort(){ if(taskAborted)throw new Error('QUEUE_ABORTED'); }
@@ -965,7 +965,7 @@
     if (!message || typeof message.action !== 'string') return false;
 
     if (message.action === 'PING_CONTENT_SCRIPT') {
-      sendResponse({ ready: true, host: 'facebook.com', version: '5.6.8' });
+      sendResponse({ ready: true, host: 'facebook.com', version: '5.7.0' });
       return false;
     }
 
