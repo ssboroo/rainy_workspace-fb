@@ -37,24 +37,26 @@ jobs:
         run: find dist/rainy-fb-pro-webstore -name '*.js' -print0 | xargs -0 -n1 node --check
       - name: Create upload ZIP with manifest at root
         run: |
+          VERSION=$(node -p "require('./extension/manifest.json').version")
           cd dist/rainy-fb-pro-webstore
-          zip -qr ../rainy-fb-pro-5.8.0-webstore.zip .
-      - name: Publish public 5.8.0 download on main
+          zip -qr "../rainy-fb-pro-${VERSION}-webstore.zip" .
+      - name: Publish public download on main
         if: github.ref == 'refs/heads/main'
         run: |
+          VERSION=$(node -p "require('./extension/manifest.json').version")
           mkdir -p public/downloads
-          cp dist/rainy-fb-pro-5.8.0-webstore.zip public/downloads/rainy-fb-pro-5.8.0.zip
+          cp "dist/rainy-fb-pro-${VERSION}-webstore.zip" "public/downloads/rainy-fb-pro-${VERSION}.zip"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add public/downloads/rainy-fb-pro-5.8.0.zip
+          git add "public/downloads/rainy-fb-pro-${VERSION}.zip"
           if ! git diff --cached --quiet; then
-            git commit -m "chore(release): publish 5.8.0 Chrome extension package [skip ci]"
+            git commit -m "chore(release): publish ${VERSION} Chrome extension package [skip ci]"
             git push
           fi
       - name: Upload Chrome Web Store package
         uses: actions/upload-artifact@v4
         with:
-          name: rainy-fb-pro-5.8.0-webstore
-          path: dist/rainy-fb-pro-5.8.0-webstore.zip
+          name: rainy-fb-pro-webstore
+          path: dist/rainy-fb-pro-*-webstore.zip
           if-no-files-found: error
           retention-days: 30
