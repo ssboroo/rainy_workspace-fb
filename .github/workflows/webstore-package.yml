@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   test-and-package:
@@ -38,6 +38,18 @@ jobs:
         run: |
           cd dist/rainy-fb-pro-webstore
           zip -qr ../rainy-fb-pro-5.6.8-webstore.zip .
+      - name: Publish public 5.6.8 download on main
+        if: github.ref == 'refs/heads/main'
+        run: |
+          mkdir -p public/downloads
+          cp dist/rainy-fb-pro-5.6.8-webstore.zip public/downloads/rainy-fb-pro-5.6.8.zip
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/downloads/rainy-fb-pro-5.6.8.zip
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(release): publish 5.6.8 Chrome extension package [skip ci]"
+            git push
+          fi
       - name: Upload Chrome Web Store package
         uses: actions/upload-artifact@v4
         with:
