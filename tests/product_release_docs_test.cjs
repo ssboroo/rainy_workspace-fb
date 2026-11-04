@@ -37,3 +37,10 @@ test('README release metadata and package builder stay aligned with the manifest
   assert(!readme.includes('5.6.8'),'README must not retain stale 5.6.8 release instructions');
   assert(!builder.includes("manifest.version!=='5.7.0'"),'package builder must accept the manifest version instead of a hard-coded release');
 });
+
+test('website homepage and download page advertise the manifest release',()=>{
+  const homepage=fs.readFileSync(path.join(root,'index.html'),'utf8');
+  assert(homepage.includes(`downloads/rainy-fb-pro-${manifest.version}.zip`));
+  assert(downloadPage.includes(`/downloads/rainy-fb-pro-${manifest.version}.zip`));
+  assert(!/rainy-fb-pro-5\\.[0-7](?:\\.|\\.zip)/.test(homepage));
+});
