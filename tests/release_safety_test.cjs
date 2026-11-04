@@ -51,7 +51,7 @@ test('website download links resolve to a ZIP copied into the static site root',
   assert.match(workflow,/cp .*dist\/rainy-fb-pro-\$\{VERSION\}-webstore\.zip.*downloads\/rainy-fb-pro-\$\{VERSION\}\.zip/);
   assert.match(workflow,/git add .*public\/downloads.*downloads/);
   const html=read('index.html');
-  assert(html.includes('downloads/rainy-fb-pro-'+manifest().version+'.zip'));
+  assert(html.includes('downloads/rainy-fb-pro-'+manifest().version+'.zip'));\n  const app=read('app.js');\n  assert(app.includes('downloads/rainy-fb-pro-'+manifest().version+'.zip'));
 });
 
 test('README installation guide points to the current website and package',()=>{
