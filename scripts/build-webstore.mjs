@@ -10,8 +10,7 @@ function inside(parent,child){
   const rel=path.relative(parent,child);
   return rel!==''&&!rel.startsWith('..')&&!path.isAbsolute(rel);
 }
-if(!inside(root,output))throw new Error('Output must be a child of the repository root or a temporary directory outside it is not allowed.');
-if(inside(source,output))throw new Error('Output cannot be written inside extension source.');
+if(output===root||output===source||inside(source,output))throw new Error('Output cannot replace the repository or be written inside extension source.');
 
 await fs.rm(output,{recursive:true,force:true});
 await fs.mkdir(output,{recursive:true});
