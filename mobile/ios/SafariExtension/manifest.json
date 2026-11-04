@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "RAINY FB Pro Mobile",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "RAINY FB Pro Safari companion extension.",
   "permissions": ["storage"],
   "host_permissions": [
@@ -9,7 +9,9 @@
     "https://m.facebook.com/*",
     "https://workspace.rainy.studio/mobile/*"
   ],
-  "background": {"scripts": ["background.js"], "persistent": false},
+  "background": {
+    "service_worker": "background.js"
+  },
   "content_scripts": [
     {
       "matches": ["https://www.facebook.com/*", "https://m.facebook.com/*"],
@@ -21,6 +23,5 @@
       "js": ["workspace.js"],
       "run_at": "document_idle"
     }
-  ],
-  "browser_specific_settings": {"gecko": {"id": "rainy-mobile@rainy.studio"}}
+  ]
 }
