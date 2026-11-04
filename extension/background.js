@@ -120,9 +120,13 @@ function today(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Ulaanbaa
 function isRestriction(error){return /FB_RESTRICTION|FACEBOOK_LOGIN_OR_CHECKPOINT|ACTION_BLOCKED/.test(error||'');}
 async function pauseQueue(reason){return atomic(async()=>{const {job}=await chrome.storage.local.get('job');if(job?.status==='RUNNING'){job.status='PAUSED';job.pauseReason=reason;await chrome.storage.local.set({job,queueStatus:'IDLE'});}isQueueRunning=false;clearTimeout(queueWakeTimer);await chrome.alarms.clear(TICK);});}
 async function scheduleTick(when=Date.now()+1000){
-  clearTimeout(queueWakeTimer);await chrome.alarms.create(TICK,{when});
-  // A short timer keeps 5s mode responsive while awake; the durable alarm is the fallback.
-  const delay=Math.max(0,when-Date.now());if(delay<25000){queueWakeTimer=setTimeout(()=>{void pump();},delay);queueWakeTimer?.unref?.();}
+  clearTimeout(queueWakeTimer);
+  const target=Number.isFinite(Number(when))?Number(when):Date.now()+1000;
+  // Chrome Web Store installs enforce a 30s minimum alarm delay. Keep the short
+  // in-memory timer for an awake worker and use the alarm as the durable fallback.
+  await chrome.alarms.create(TICK,{when:Math.max(target,Date.now()+30000)});
+  const delay=Math.max(0,target-Date.now());
+  if(delay<30000){queueWakeTimer=setTimeout(()=>{void pump();},delay);queueWakeTimer?.unref?.();}
 }
 function dataUrlToBlob(dataUrl,fallbackType='image/jpeg'){
   const parts=String(dataUrl||'').split(',');
@@ -304,12 +308,22 @@ async function configureSchedule(c){
 async function recoverQueue(){
   return atomic(async()=>{
     const {job,postLedger={}}=await chrome.storage.local.get(['job','postLedger']);
-    if(!job||!['RUNNING','STOPPING'].includes(job.status))return;
-    if(!job.items.some(i=>['PREPARING','SUBMITTING'].includes(i.status))){isQueueRunning=true;await scheduleTick(Math.max(Date.now()+1000,job.nextAt||0));return;}
-    const oldTab=job.tabId;RainyCore.recover(job);
-    for(const i of job.items.filter(i=>i.status==='UNKNOWN'))postLedger[i.key]={status:'UNKNOWN',at:Date.now(),jobId:job.id,url:i.url};
-    await chrome.storage.local.set({job,postLedger,queueStatus:'IDLE'});isQueueRunning=false;
+    if(!job||!['RUNNING','STOPPING'].includes(job.status)){
+      isQueueRunning=false;
+      await chrome.storage.local.set({queueStatus:'IDLE'});
+      return;
+    }
+    const oldTab=job.tabId;
+    RainyCore.recover(job);
+    for(const i of job.items.filter(i=>i.status==='UNKNOWN')){
+      postLedger[i.key]={status:'UNKNOWN',at:Date.now(),jobId:job.id,url:i.url};
+    }
+    const running=job.status==='RUNNING';
+    if(running)job.nextAt=Math.max(Number(job.nextAt)||0,Date.now()+1000);
+    isQueueRunning=running;
+    await chrome.storage.local.set({job,postLedger,queueStatus:running?'RUNNING':'IDLE'});
     if(oldTab)await safelyCloseTab(oldTab);
+    if(running)await scheduleTick(job.nextAt);
   });
 }
 const ready=(async()=>{
@@ -319,7 +333,6 @@ const ready=(async()=>{
   // Legacy credentials are never used. Preserve them until the owner migrates settings.
   // Existing license state must survive upgrades and every worker wake.
   await chrome.alarms.clear('RAINY_TG_POLL_ALARM').catch(()=>{});
-  await chrome.storage.local.set({queueStatus:'IDLE'});
   await chrome.storage.local.setAccessLevel({accessLevel:'TRUSTED_CONTEXTS'}).catch(()=>{});
   await recoverQueue();await chrome.alarms.create(RECOVERY,{periodInMinutes:1});
   const {scheduleConfig:c}=await chrome.storage.local.get('scheduleConfig');
