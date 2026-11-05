@@ -15,3 +15,17 @@ header{height:88px}header nav{font-size:12px;gap:23px}.announce{color:#5b7397;ba
 @media(max-width:1000px){.hero h1{font-size:64px}.luxury-stage{max-width:760px;margin:24px auto 0}.actual-stage{margin-top:38px;padding:20px}.hero-product{border-radius:18px}}@media(max-width:700px){.hero h1{font-size:clamp(39px,10vw,54px);letter-spacing:-2px}.luxury-stage{width:100%;margin:22px auto 0;padding-bottom:20px}.float-label{font-size:7px;padding:8px;margin-top:8px}.stage-note{font-size:6px;bottom:0}.actual-stage{padding:12px;margin-top:30px}.actual-stage .stage-label{font-size:6px;letter-spacing:.5px;gap:10px;margin-bottom:12px}.actual-stage .stage-caption{font-size:8px;flex-direction:column;gap:3px}.real-window{border-radius:10px}.real-window-bar{font-size:8px;padding:0 10px;height:32px}.preview-tag{font-size:6px}#workspaceFrame{height:740px}.hero-meta{flex-wrap:wrap}.hero-product{border-radius:14px}}
 
 .estate-workflows{padding-top:0;padding-bottom:65px}.estate-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}.estate-cards article{padding:28px;border:1px solid #dbe6f7;border-radius:16px;background:#fff;box-shadow:0 12px 30px #17448706}.estate-cards small{font-size:9px;letter-spacing:1px;color:#3474ce}.estate-cards h3{font-size:20px;line-height:1.5;margin:16px 0 12px;letter-spacing:-.5px}.estate-cards p,.estate-footnote{font-size:12px;line-height:1.9;color:#667e9f}.estate-footnote{margin-top:22px}.hero h1{font-size:clamp(42px,4vw,58px)}.hero-copy{line-height:1.85}.release-note h2{font-size:23px}.release-note p{font-size:12px;line-height:1.9;color:#667e9f}.download-section h2{font-size:45px;letter-spacing:-2px;line-height:1.3}@media(max-width:1000px){.estate-cards{grid-template-columns:1fr}.hero h1{font-size:58px}}@media(max-width:700px){.hero-kicker{flex-wrap:wrap}.hero h1{font-size:46px;letter-spacing:-2px}.hero-copy{font-size:12px}.estate-cards article{padding:23px}.estate-workflows{padding-bottom:40px}.download-section h2{font-size:36px}}
+
+/* Chrome Web Store branding and direct ZIP installer */
+.chrome-store-link{display:inline-flex;align-items:center;justify-content:center;gap:9px}
+.chrome-logo{width:20px;height:20px;flex:0 0 20px;display:inline-block}
+.zip-download{display:inline-flex;align-items:center;justify-content:center;gap:9px;background:#fff;color:#1e4e91;border:1px solid #bfd2ee}
+.hero-actions .zip-download{padding:16px 19px}
+.download-section{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:22px;align-items:center;margin:18px auto 28px;padding:24px 26px;max-width:1000px;border:1px solid #d7e4f6;border-radius:18px;background:linear-gradient(120deg,#f5f9ff,#fff);box-shadow:0 14px 34px #173f7710}
+.download-copy{min-width:0}.download-kicker{font-size:9px;letter-spacing:1.4px;color:#3976c8;font-weight:800}
+.download-copy h3{font-size:22px;line-height:1.35;margin:8px 0;color:#17345f}
+.download-copy p{max-width:580px;font-size:12px;line-height:1.8;color:#637b9e;margin:0}
+.download-actions{display:flex;flex-direction:column;gap:10px;min-width:240px}
+.download-actions .button{width:100%;white-space:normal}
+.download-actions small{font-size:10px;color:#7588a5;text-align:center}
+@media(max-width:700px){.download-section{grid-template-columns:1fr;padding:18px;margin:16px 0 24px;gap:15px}.download-copy h3{font-size:19px}.download-actions{min-width:0}.hero-actions{flex-wrap:wrap}.hero-actions .button{min-width:0}.chrome-logo{width:18px;height:18px;flex-basis:18px}}
